@@ -1,0 +1,77 @@
+global function Sh_GamemodePayload_Init
+
+global const string GAMEMODE_PLD = "payload"
+
+void function Sh_GamemodePayload_Init()
+{
+	AddPrivateMatchMode( "payload" )
+	AddCallback_OnCustomGamemodesInit( CreateGamemodePLD )
+	AddCallback_OnRegisteringCustomNetworkVars( PLDRegisterNetworkVars )
+}
+
+void function CreateGamemodePLD()
+{
+	GameMode_Create( GAMEMODE_PLD )
+	GameMode_SetName( GAMEMODE_PLD, "#GAMEMODE_PLD" )
+	GameMode_SetDesc( GAMEMODE_PLD, "#PL_payload_desc" )
+	GameMode_SetGameModeAnnouncement( GAMEMODE_PLD, "gnrc_modeDesc" )
+	GameMode_SetIcon( GAMEMODE_PLD, $"ui/menu/playlist/cp" )
+	GameMode_SetDefaultScoreLimits( GAMEMODE_PLD, 0, 4 )
+	GameMode_SetDefaultTimeLimits( GAMEMODE_PLD, 0, 5 )
+	GameMode_AddScoreboardColumnData( GAMEMODE_PLD, "#SCOREBOARD_PLD_CONTRIB", PGS_ASSAULT_SCORE, 2 )
+	GameMode_AddScoreboardColumnData( GAMEMODE_PLD, "#SCOREBOARD_PILOT_KILLS", PGS_PILOT_KILLS, 2 )
+	GameMode_AddScoreboardColumnData( GAMEMODE_PLD, "#SCOREBOARD_DEATHS", PGS_DEATHS, 2 )
+	GameMode_SetColor( GAMEMODE_PLD, [64, 192, 255, 255] )
+
+	AddPrivateMatchMode( GAMEMODE_PLD )
+	
+	#if SERVER
+		GameMode_AddServerInit( GAMEMODE_PLD, GamemodePLD_Init )
+		GameMode_SetPilotSpawnpointsRatingFunc( GAMEMODE_PLD, RateSpawnpoints_PLD )
+		GameMode_SetTitanSpawnpointsRatingFunc( GAMEMODE_PLD, RateSpawnpoints_PLD )
+	#elseif CLIENT
+		GameMode_AddClientInit( GAMEMODE_PLD, ClGamemodePLD_Init )
+	#endif
+	#if !UI
+		GameMode_SetScoreCompareFunc( GAMEMODE_PLD, CompareAssaultScore )
+		GameMode_AddSharedInit( GAMEMODE_PLD, GamemodeFFA_Dialogue_Init )
+	#endif
+}
+
+void function PLDRegisterNetworkVars()
+{
+	if ( GAMETYPE != GAMEMODE_PLD )
+		return
+	
+	RegisterString( "#PLD_VICTORY_MESSAGE_OBJECTIVE" )
+	RegisterString( "#PLD_DEFEAT_MESSAGE_OBJECTIVE" )
+	
+	RegisterNetworkedVariable( "checkpoint0Ent", SNDC_GLOBAL, SNVT_ENTITY )
+	RegisterNetworkedVariable( "checkpoint1Ent", SNDC_GLOBAL, SNVT_ENTITY )
+	RegisterNetworkedVariable( "checkpoint2Ent", SNDC_GLOBAL, SNVT_ENTITY )
+	
+	RegisterNetworkedVariable( "militiaHarvester", SNDC_GLOBAL, SNVT_ENTITY )
+	
+	RegisterNetworkedVariable( "objective0State", SNDC_GLOBAL, SNVT_INT )
+	RegisterNetworkedVariable( "objective1State", SNDC_GLOBAL, SNVT_INT )
+	RegisterNetworkedVariable( "objective2State", SNDC_GLOBAL, SNVT_INT )
+	
+	RegisterNetworkedVariable( "objective0CappingTeam", SNDC_GLOBAL, SNVT_INT )
+	RegisterNetworkedVariable( "objective1CappingTeam", SNDC_GLOBAL, SNVT_INT )
+	RegisterNetworkedVariable( "objective2CappingTeam", SNDC_GLOBAL, SNVT_INT )
+	
+	RegisterNetworkedVariable( "objective0Progress", SNDC_GLOBAL, SNVT_FLOAT_RANGE, 0.0, 0.0, 1.0 )
+	RegisterNetworkedVariable( "objective1Progress", SNDC_GLOBAL, SNVT_FLOAT_RANGE, 0.0, 0.0, 1.0 )
+	RegisterNetworkedVariable( "objective2Progress", SNDC_GLOBAL, SNVT_FLOAT_RANGE, 0.0, 0.0, 1.0 )
+	
+	RegisterNetworkedVariable( "imcChevronState", SNDC_GLOBAL, SNVT_INT )
+	RegisterNetworkedVariable( "milChevronState", SNDC_GLOBAL, SNVT_INT )
+	
+	RegisterNetworkedVariable( "showOverheadIcon", SNDC_TITAN_SOUL, SNVT_BOOL, false )
+	
+	Remote_RegisterFunction( "ServerCallback_PLD_PlayBattleMusic" )
+	
+	#if CLIENT
+		CLPayload_RegisterNetworkFunctions()
+	#endif
+}

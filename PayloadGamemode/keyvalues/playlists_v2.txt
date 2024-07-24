@@ -1,0 +1,96 @@
+playlists
+{
+	Gamemodes
+	{
+		payload
+		{
+			inherit defaults
+			vars
+			{
+				name #PL_payload
+				lobbytitle #PL_payload_lobby
+				description #PL_payload_desc
+				hint #PL_payload_hint
+				abbreviation #PL_payload_abbr
+				image cp
+				color "64 192 255 255"
+				
+				run_evac 0
+				max_players 16
+				max_teams 2
+				timelimit 6
+				scorelimit 1
+				spawn_zone_enabled 1
+				riff_allow_npcs 1
+				riff_titan_availability 3
+				riff_titan_exit_enabled 2
+				featured_mode_amped_tacticals 1
+				boosts_enabled 0
+				riff_team_share_earn_meter 2
+                riff_team_share_earn_meter_scale 0.25
+				
+				gamemode_score_hint #GAMEMODE_SCORE_HINT_PLD
+				gamemode_bullet_001	#GAMEMODE_BULLET_PLD_001
+				gamemode_bullet_002	#GAMEMODE_BULLET_PLD_002
+				gamemode_bullet_003	#GAMEMODE_BULLET_PLD_003
+				gamemode_bullet_004	#GAMEMODE_BULLET_PLD_004
+				gamemode_bullet_005	#GAMEMODE_BULLET_PLD_005
+			}
+			maps
+			{
+				mp_angel_city 1
+				mp_black_water_canal 1
+				mp_drydock 1
+				mp_eden 1
+			}
+		}
+	}
+	Playlists
+	{
+		payload
+		{
+			inherit defaults
+			vars
+			{
+				name #PL_payload
+				lobbytitle #PL_payload_lobby
+				description #PL_payload_desc
+				hint #PL_payload_hint
+				abbreviation #PL_payload_abbr
+				image cp
+				color "64 192 255 255"
+				mixtape_promo_slot 4
+				visible 1
+			}
+			gamemodes
+			{
+				payload
+				{
+					maps
+					{
+						mp_angel_city 1
+						mp_black_water_canal 1
+						mp_drydock 1
+						mp_eden 1
+					}
+				}
+			}
+		}
+		private_match
+		{
+			gamemodes
+			{
+				payload
+				{
+					maps
+					{
+						mp_angel_city 1
+						mp_black_water_canal 1
+						mp_drydock 1
+						mp_eden 1
+					}
+				}
+			}
+		}
+	}
+}

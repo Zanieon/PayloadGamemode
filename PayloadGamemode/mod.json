@@ -1,0 +1,37 @@
+{
+	"Name" : "Nuclear Payload",
+	"Description" : "Similar payload gamemode from the other TF2",
+	"Version": "0.1.0",
+	"LoadPriority": 3,
+	"RequiredOnClient": true,
+	"Scripts": [
+		{
+			"Path": "gamemodes/sh_gamemode_payload.gnut",
+			"RunOn": "( CLIENT || SERVER ) && MP",
+			"ClientCallback": {
+				"Before": "Sh_GamemodePayload_Init"
+			},
+			"ServerCallback": {
+				"Before": "Sh_GamemodePayload_Init"
+			}
+		},
+		{
+			"Path": "gamemodes/_gamemode_pld.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "gamemodes/cl_gamemode_pld.nut",
+			"RunOn": "CLIENT && MP"
+		},
+		{
+			"Path": "mp/levels/payload_maps.nut",
+			"RunOn": "SERVER && MP",
+			"ServerCallback": {
+				"Before": "PayloadCallback_MapInit"
+			}
+		}
+	],
+	"Localisation": [
+		"resource/payload_localisation_%language%.txt"
+	]
+}
