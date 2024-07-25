@@ -2,6 +2,14 @@ global function Sh_GamemodePayload_Init
 
 global const string GAMEMODE_PLD = "payload"
 
+global enum ePLDTutorials
+{
+	Teams,
+	NukeTitanRodeo,
+	NukeTitanBattery,
+	HarvesterBattery
+}
+
 void function Sh_GamemodePayload_Init()
 {
 	AddPrivateMatchMode( "payload" )
@@ -70,6 +78,7 @@ void function PLDRegisterNetworkVars()
 	RegisterNetworkedVariable( "showOverheadIcon", SNDC_TITAN_SOUL, SNVT_BOOL, false )
 	
 	Remote_RegisterFunction( "ServerCallback_PLD_PlayBattleMusic" )
+	Remote_RegisterFunction( "ServerCallback_PLD_ShowTutorialHint" )
 	
 	#if CLIENT
 		CLPayload_RegisterNetworkFunctions()

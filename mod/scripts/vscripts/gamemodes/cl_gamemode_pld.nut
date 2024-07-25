@@ -1,6 +1,7 @@
 global function ClGamemodePLD_Init
 global function CLPayload_RegisterNetworkFunctions
 global function ServerCallback_PLD_PlayBattleMusic
+global function ServerCallback_PLD_ShowTutorialHint
 
 struct {
 	var checkpointARui
@@ -12,7 +13,10 @@ struct {
 	var checkpointCHudRui
 	
 	var harvesterRui
+	var tutorialTip
 } file
+
+table< int, bool > tutorialShown
 
 
 
@@ -52,6 +56,7 @@ void function ClGamemodePLD_Init()
 	RegisterLevelMusicForTeam( eMusicPieceID.GAMEMODE_1, "music_s2s_04_maltabattle_alt", TEAM_MILITIA )
 	
 	ClGameState_RegisterGameStateAsset( $"ui/gamestate_info_cp.rpak" )
+	CallsignEvents_SetEnabled( true )
 	
 	AddCreateCallback( "info_hardpoint", OnCheckpointCreated )
 	AddCreateCallback( "prop_script", OnPropScriptCreated )
@@ -64,6 +69,8 @@ void function ClGamemodePLD_Init()
 	file.checkpointAHudRui = CreateCockpitRui( $"ui/cp_hardpoint_hud.rpak", 100 )
 	file.checkpointBHudRui = CreateCockpitRui( $"ui/cp_hardpoint_hud.rpak", 100 )
 	file.checkpointCHudRui = CreateCockpitRui( $"ui/cp_hardpoint_hud.rpak", 100 )
+	
+	file.tutorialTip = CreatePermanentCockpitRui( $"ui/fd_tutorial_tip.rpak", MINIMAP_Z_BASE )
 	
 	AddCallback_OnClientScriptInit( ClGamemodePLD_OnClientScriptInit )
 	AddCallback_GameStateEnter( eGameState.WinnerDetermined, ClGamemodePLD_OnWinnerDetermined )
@@ -152,11 +159,11 @@ void function OnPropScriptCreated( entity prop )
 		RuiSetImage( file.harvesterRui, "icon", $"rui/hud/gametype_icons/fd/coop_harvester" )
 		RuiSetBool( file.harvesterRui, "isVisible", true )
 		RuiSetBool( file.harvesterRui, "showClampArrow", true )
-		RuiSetFloat2( file.harvesterRui, "iconSize", <128,128,0> )
+		RuiSetFloat2( file.harvesterRui, "iconSize", <96,96,0> )
 		RuiTrackFloat3( file.harvesterRui, "pos", prop, RUI_TRACK_ABSORIGIN_FOLLOW )
 	}
 	
-	if ( prop.GetTeam() == TEAM_MILITIA && prop.GetTargetName() == "harvesterBoostPort" )
+	if ( GetLocalViewPlayer().GetTeam() == TEAM_MILITIA && prop.GetTeam() == TEAM_MILITIA && prop.GetTargetName() == "harvesterBoostPort" )
 		thread AddOverheadIcon( prop, $"rui/hud/battery/battery_generator", false )
 }
 
@@ -422,4 +429,132 @@ void function ServerCallback_PLD_PlayBattleMusic()
 {
 	StopMusic()
 	thread ForceLoopMusic_DEPRECATED( eMusicPieceID.GAMEMODE_1 )
+}
+
+
+
+
+
+
+
+
+
+/*
+
+████████╗██╗   ██╗████████╗ ██████╗ ██████╗ ██╗ █████╗ ██╗     ███████╗
+╚══██╔══╝██║   ██║╚══██╔══╝██╔═══██╗██╔══██╗██║██╔══██╗██║     ██╔════╝
+   ██║   ██║   ██║   ██║   ██║   ██║██████╔╝██║███████║██║     ███████╗
+   ██║   ██║   ██║   ██║   ██║   ██║██╔══██╗██║██╔══██║██║     ╚════██║
+   ██║   ╚██████╔╝   ██║   ╚██████╔╝██║  ██║██║██║  ██║███████╗███████║
+   ╚═╝    ╚═════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝╚══════╝
+
+*/
+
+
+void function ServerCallback_PLD_ShowTutorialHint( int tutorialID )
+{
+	entity player = GetLocalClientPlayer()
+	
+	if ( tutorialID in tutorialShown )
+	{
+		if ( tutorialShown[tutorialID] )
+			return
+	}
+	
+	asset backgroundImage = $""
+	asset tipIcon = $""
+	string tipTitle = ""
+	string tipDesc = ""
+
+	switch ( tutorialID )
+	{
+		case ePLDTutorials.Teams:
+			if ( player.GetTeam() == TEAM_MILITIA )
+			{
+				backgroundImage = $"rui/menu/boosts/boost_harvester"
+				tipTitle = "#PLD_TUTORIAL_DEFENDING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_DEFENDING_DESC"
+			}
+			else
+			{
+				backgroundImage = $"rui/menu/boosts/boost_nuke"
+				tipTitle = "#PLD_TUTORIAL_PUSHING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_PUSHING_DESC"
+			}
+			break
+		
+		case ePLDTutorials.NukeTitanRodeo:
+			if ( player.GetTeam() == TEAM_MILITIA )
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_core_overload"
+				tipTitle = "#PLD_TUTORIAL_RODEO_DEFENDING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_RODEO_DEFENDING_DESC"
+			}
+			else
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_core_overload"
+				tipTitle = "#PLD_TUTORIAL_RODEO_PUSHING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_RODEO_PUSHING_DESC"
+			}
+			break
+		
+		case ePLDTutorials.NukeTitanBattery:
+			if ( player.GetTeam() == TEAM_MILITIA )
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_titan_nuke"
+				tipTitle = "#PLD_TUTORIAL_TITAN_SHIELD_DEFENDING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_TITAN_SHIELD_DEFENDING_DESC"
+			}
+			else
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_titan_nuke"
+				tipTitle = "#PLD_TUTORIAL_TITAN_SHIELD_PUSHING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_TITAN_SHIELD_PUSHING_DESC"
+			}
+			break
+		
+		case ePLDTutorials.HarvesterBattery:
+			if ( player.GetTeam() == TEAM_MILITIA )
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_harvester"
+				tipTitle = "#PLD_TUTORIAL_HARVESTER_SHIELD_DEFENDING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_HARVESTER_SHIELD_DEFENDING_DESC"
+			}
+			else
+			{
+				backgroundImage = $"rui/hud/gametype_icons/fd/onboard_harvester"
+				tipTitle = "#PLD_TUTORIAL_HARVESTER_SHIELD_PUSHING_TITLE"
+				tipDesc = "#PLD_TUTORIAL_HARVESTER_SHIELD_PUSHING_DESC"
+			}
+			break
+
+		default:
+			return
+	}
+	
+	if ( !( tutorialID in tutorialShown ) )
+		tutorialShown[tutorialID] <- true
+
+	PLDDisplayTutorialTip( backgroundImage, tipIcon, tipTitle, tipDesc )
+}
+
+void function PLDDisplayTutorialTip( asset backgroundImage, asset tipIcon, string tipTitle, string tipDesc )
+{
+	RuiSetImage( file.tutorialTip, "backgroundImage", backgroundImage )
+	RuiSetImage( file.tutorialTip, "iconImage", tipIcon )
+	RuiSetString( file.tutorialTip, "titleText", tipTitle )
+	RuiSetString( file.tutorialTip, "descriptionText", tipDesc )
+	RuiSetGameTime( file.tutorialTip, "updateTime", Time() )
+	RuiSetFloat( file.tutorialTip, "duration", 10.0 )
+	thread PLDTutorialTipSounds()
+}
+
+void function PLDTutorialTipSounds()
+{
+	entity player = GetLocalClientPlayer()
+	player.EndSignal( "OnDestroy" )
+
+	EmitSoundOnEntity( player, "UI_InGame_FD_InfoCardSlideIn"  )
+	wait 6.0
+	EmitSoundOnEntity( player, "UI_InGame_FD_InfoCardSlideOut" )
 }

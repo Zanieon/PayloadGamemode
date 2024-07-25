@@ -51,6 +51,8 @@ struct {
 	table< entity, PayloadPlayer > matchPlayers
 	table< entity, array< entity > > checkPoints
 	
+	array< entity > playerMusicStarted
+	
 	array< void functionref() > payloadCallbacks
 	
 	vector nukeTitanSpawnSpot = < 0, 0, 0 >
@@ -172,7 +174,10 @@ void function StartHarvesterAndPrepareNukeTitan_threaded()
 	
 	MessageToAll( eEventNotifications.TEMP_TitanGreenRoom )
 	foreach ( player in GetPlayerArray() )
+	{
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
+		file.playerMusicStarted.append( player )
+	}
 	
 	wait 5
 	
@@ -212,13 +217,18 @@ void function TrackPlayerTimeForPushOrHalt( entity player )
 	
 	WaitFrame()
 	
-	if ( GamePlaying() )
-		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
-	
 	bool changedState = false
 	
 	while( !IsValid( file.theNukeTitan ) ) // Wait for the Nuke Titan to spawn in
 		WaitFrame()
+	
+	if( !file.playerMusicStarted.contains( player ) )
+	{
+		file.playerMusicStarted.append( player )
+		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
+	}
+	
+	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.Teams )
 	
 	while( IsValidPlayer( player ) )
 	{
@@ -264,6 +274,9 @@ void function GamemodePLD_PlayerDisconnected( entity player )
 {
 	if ( player in file.matchPlayers )
 		delete file.matchPlayers[player]
+	
+	if( file.playerMusicStarted.contains( player ) )
+		file.playerMusicStarted.removebyvalue( player )
 }
 
 void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var damageInfo )
@@ -280,6 +293,9 @@ void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var da
 
 void function PLD_ShieldedNukeTitan( entity rider, entity titan, entity battery )
 {
+	foreach ( player in GetPlayerArray() )
+		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanBattery )
+	
 	rider.AddToPlayerGameStat( PGS_DEFENSE_SCORE, PAYLOAD_SCORE_OBJECTIVE_SHIELD_TITAN )
 }
 
@@ -1036,6 +1052,13 @@ void function OnNukeTitanDamaged( entity npc, var damageInfo )
 
 int function PLD_TimeoutWinner()
 {
+	if (  !IsAlive( file.theNukeTitan ) && IsValid( file.militiaHarvester.harvester ) && file.militiaHarvester.harvester.GetHealth() > 0 )
+		return TEAM_UNASSIGNED
+	
+	// Make those score overrides because reason message won't display properly if both teams are still tied by this moment
+	GameRules_SetTeamScore( TEAM_IMC, 0 )
+	GameRules_SetTeamScore( TEAM_MILITIA, 1 )
+	
 	return TEAM_MILITIA
 }
 
@@ -1117,6 +1140,9 @@ function PayloadUseBatteryFunc( batteryPortvar, playervar )
 		vector shieldColor = GetShieldTriLerpColor( 1.0 - ( harvester.GetShieldHealth().tofloat() / harvester.GetShieldHealthMax().tofloat() ) )
 		EffectSetControlPointVector( file.militiaHarvester.particleShield, 1, shieldColor )
 	}
+	
+	foreach ( player in GetPlayerArray() )
+		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.HarvesterBattery )
 }
 
 void function Payload_RouteHologramRepeater()
@@ -1126,7 +1152,7 @@ void function Payload_RouteHologramRepeater()
 	while( true )
 	{
 		thread Payload_ShowRouteHologram()
-		wait 2
+		wait 3
 	}
 }
 
@@ -1158,17 +1184,25 @@ void function Payload_ShowRouteHologram()
 
 void function PLD_PilotStartRodeo( entity pilot, entity titan )
 {
-	Highlight_SetEnemyHighlight( pilot, "sp_objective_entity" )
-	pilot.Highlight_SetParam( 2, 0, HIGHLIGHT_COLOR_ENEMY )
-	
 	if( pilot.GetTeam() != titan.GetTeam() && !PlayerHasBattery( pilot ) )
+	{
+		Highlight_SetEnemyHighlight( pilot, "sp_objective_entity" )
+		pilot.Highlight_SetParam( 2, 0, HIGHLIGHT_COLOR_ENEMY )
+	
+		foreach ( player in GetPlayerArray() )
+			Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanRodeo )
+		
 		pilot.SetInvulnerable()
+	}
 }
 
 void function PLD_PilotEndRodeo( entity pilot, entity titan )
 {
-	Highlight_ClearEnemyHighlight( pilot )
-	
 	if ( pilot.IsInvulnerable() )
+	{
+		if( pilot.GetTeam() != titan.GetTeam() )
+			Highlight_ClearEnemyHighlight( pilot )
+		
 		pilot.ClearInvulnerable()
+	}
 }
