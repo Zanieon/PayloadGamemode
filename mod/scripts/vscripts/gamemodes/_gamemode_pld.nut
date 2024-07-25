@@ -19,6 +19,8 @@ global function AddCallback_PayloadMode
 const float PLD_HARVESTER_PERIMETER_DIST = 8000.0
 const float PLD_PUSH_DIST = 400.0
 const float PLD_BASE_NUKE_TITAN_MOVESPEED_SCALE = 0.1
+const float PLD_PATH_TRACKER_REFRESH_FREQUENCY = 5
+const float PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS = 0.5
 
 const int PAYLOAD_SCORE_OBJECTIVE_DEFENSE_KILL = 6
 const int PAYLOAD_SCORE_OBJECTIVE_DEFENSE_BONUS = 15
@@ -804,7 +806,21 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 			}
 		}
 		else
+		{
+			if ( !file.nukeIsMoving )
+			{
+				file.nukeIsMoving = true
+					
+				if( file.capturedCheckpoints < file.checkpointEnts.len() )
+				{
+					SetGlobalNetInt( "objective" + file.capturedCheckpoints + "CappingTeam", titan.GetTeam() )
+					file.checkpointEnts[file.capturedCheckpoints].SetHardpointState( CAPTURE_POINT_STATE_CAPPING )
+				}
+					
+				thread MovePayloadNukeTitan( titan, file.currentRouteNode )
+			}
 			titan.SetNPCMoveSpeedScale( PLD_BASE_NUKE_TITAN_MOVESPEED_SCALE * 3 )
+		}
 		
 		TrackCheckpointProgress( file.capturedCheckpoints )
 		wait 0.5
@@ -934,7 +950,7 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 	int damageSourceID = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float damageAmount = DamageInfo_GetDamage( damageInfo )
 	
-	if( !GamePlaying() )
+	if( !GamePlaying() || attacker.GetTeam() == harvester.GetTeam() )
 	{
 		DamageInfo_ScaleDamage( damageInfo, 0.0 )
 		return
@@ -989,6 +1005,12 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 	
 	if ( harvester.GetShieldHealth() == 0 )
 	{
+		if( DamageInfo_GetDamageSourceIdentifier( damageInfo ) != eDamageSourceId.damagedef_nuclear_core )
+		{
+			DamageInfo_SetDamage( damageInfo, 0.0 )
+			return
+		}
+		
 		float newHealth = harvester.GetHealth() - damageAmount
 		if ( newHealth <= 0 )
 		{
@@ -1006,8 +1028,6 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 			SetWinner( TEAM_IMC, "#PLD_VICTORY_MESSAGE_OBJECTIVE", "#PLD_DEFEAT_MESSAGE_OBJECTIVE" )
 		}
 	}
-	
-    DamageInfo_SetDamage( damageInfo, damageAmount )
 }
 
 void function OnNukeTitanDamaged( entity npc, var damageInfo )
@@ -1139,7 +1159,7 @@ void function Payload_RouteHologramRepeater()
 	while( true )
 	{
 		thread Payload_ShowRouteHologram()
-		wait 3
+		wait PLD_PATH_TRACKER_REFRESH_FREQUENCY
 	}
 }
 
@@ -1156,8 +1176,8 @@ void function Payload_ShowRouteHologram()
 		PlayLoopFXOnEntity( $"P_ar_holopilot_trail", mover )
 		PlayLoopFXOnEntity( FLAG_FX_FRIENDLY, mover )
 		
-		mover.NonPhysicsMoveTo( routepoint, 1.0, 0.0, 0.0 )
-		wait 1
+		mover.NonPhysicsMoveTo( routepoint, PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS, 0.0, 0.0 )
+		wait PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS
 		routeindex++
 		if ( routeindex < file.payloadRoute.len() )
 			routepoint = file.payloadRoute[routeindex] + < 0, 0, 64 >
@@ -1171,11 +1191,14 @@ void function Payload_ShowRouteHologram()
 
 void function PLD_PilotStartRodeo( entity pilot, entity titan )
 {
+	Highlight_SetFriendlyHighlight( pilot, "sp_friendly_hero" )
+	pilot.Highlight_SetParam( 1, 0, < 0.5, 2.0, 0.5 > )
+	
+	Highlight_SetEnemyHighlight( pilot, "sp_objective_entity" )
+	pilot.Highlight_SetParam( 2, 0, HIGHLIGHT_COLOR_ENEMY )
+	
 	if( pilot.GetTeam() != titan.GetTeam() && !PlayerHasBattery( pilot ) )
 	{
-		Highlight_SetEnemyHighlight( pilot, "sp_objective_entity" )
-		pilot.Highlight_SetParam( 2, 0, HIGHLIGHT_COLOR_ENEMY )
-	
 		foreach ( player in GetPlayerArray() )
 			Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanRodeo )
 		
@@ -1185,11 +1208,9 @@ void function PLD_PilotStartRodeo( entity pilot, entity titan )
 
 void function PLD_PilotEndRodeo( entity pilot, entity titan )
 {
+	Highlight_ClearEnemyHighlight( pilot )
+	Highlight_ClearFriendlyHighlight( pilot )
+	
 	if ( pilot.IsInvulnerable() )
-	{
-		if( pilot.GetTeam() != titan.GetTeam() )
-			Highlight_ClearEnemyHighlight( pilot )
-		
 		pilot.ClearInvulnerable()
-	}
 }

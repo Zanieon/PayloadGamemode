@@ -1,7 +1,7 @@
 {
 	"Name" : "Titan Payload",
 	"Description" : "Similar payload gamemode from the other TF2",
-	"Version": "1.0.2",
+	"Version": "1.0.3",
 	"LoadPriority": 3,
 	"RequiredOnClient": true,
 	"Scripts": [
