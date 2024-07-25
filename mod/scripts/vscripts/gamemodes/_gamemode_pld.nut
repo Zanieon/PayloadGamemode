@@ -65,6 +65,8 @@ struct {
 	array< vector > payloadRoute
 	int currentRouteNode
 	int capturedCheckpoints = 0
+	
+	int nukeTitanShieldHack = 0
 }file
 
 
@@ -100,6 +102,7 @@ void function GamemodePLD_Init()
 	RegisterSignal( "BatteryActivate" ) //From Frontier War, to give shields to the Harvester
 	
 	SetTimeoutWinnerDecisionFunc( PLD_TimeoutWinner )
+	SetGameModeRulesEarnMeterOnDamage( GameModeRulesEarnMeterOnDamage_PLD )
 	
 	ClassicMP_ForceDisableEpilogue( true )
 	AddCallback_EntitiesDidLoad( LoadPayloadContent )
@@ -559,7 +562,8 @@ void function Payload_SpawnNukeTitan()
 	npc.DisableNPCFlag( NPC_DIRECTIONAL_MELEE )
 	npc.SetCapabilityFlag( bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2 | bits_CAP_SYNCED_MELEE_ATTACK , false )
 	npc.SetValidHealthBarTarget( false )
-	AddEntityCallback_OnFinalDamaged( npc, OnNukeTitanDamaged )
+	AddEntityCallback_OnDamaged( npc, OnNukeTitanDamaged )
+	AddEntityCallback_OnPostDamaged( npc, OnNukeTitanPostDamaged )
 	file.theNukeTitan = npc
 	
 	entity soul = npc.GetTitanSoul()
@@ -956,6 +960,13 @@ void function TrackCheckpointProgress( int checkpointIndex )
 
 */
 
+
+//This is intentionally blank just so it doesn't give boost meter for Defenders if they use Anti-Titan weapons against the Nuke Titan or damage its Shields
+void function GameModeRulesEarnMeterOnDamage_PLD( entity attacker, entity victim, TitanDamage titanDamage, float savedDamage )
+{
+}
+
+
 void function OnHarvesterDamaged( entity harvester, var damageInfo )
 {
 	entity attacker = DamageInfo_GetAttacker( damageInfo )
@@ -1047,10 +1058,27 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 
 void function OnNukeTitanDamaged( entity npc, var damageInfo )
 {
+	int damageSourceID = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+	entity soul = npc.GetTitanSoul()
+	
+	if( IsValid( soul ) && damageSourceID == eDamageSourceId.mp_weapon_grenade_emp )
+		file.nukeTitanShieldHack = soul.GetShieldHealth()
+}
+
+void function OnNukeTitanPostDamaged( entity npc, var damageInfo )
+{
+	int damageSourceID = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	entity soul = npc.GetTitanSoul()
 	
 	if( IsValid( soul ) )
 	{
+		if ( damageSourceID == eDamageSourceId.mp_weapon_grenade_emp ) // Bypass the Arc Grenade taking shield by percentage because funni Respawn design towards it
+		{
+			int shieldTakeSegment = soul.GetShieldHealthMax() / 10
+			file.nukeTitanShieldHack -= shieldTakeSegment
+			soul.SetShieldHealth( maxint( 0, file.nukeTitanShieldHack ) )
+		}
+		
 		UpdateShieldTrackingOfNukeOrHarvester( npc, soul.GetShieldHealth() )
 		if ( soul.GetShieldHealth() == 0 )
 			DamageInfo_ScaleDamage( damageInfo, 0.0 ) // Basically invulnerability
