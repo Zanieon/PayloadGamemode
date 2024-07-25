@@ -16,6 +16,9 @@ struct {
 	var tutorialTip
 	
 	bool musicPlaying = false
+	
+	entity militiaHarvester
+	entity theNukeTitan
 } file
 
 table< int, bool > tutorialShown
@@ -58,11 +61,12 @@ void function ClGamemodePLD_Init()
 	RegisterLevelMusicForTeam( eMusicPieceID.GAMEMODE_1, "music_s2s_04_maltabattle_alt", TEAM_MILITIA )
 	
 	ClGameState_RegisterGameStateAsset( $"ui/gamestate_info_cp.rpak" )
-	CallsignEvents_SetEnabled( true )
 	
 	AddCreateCallback( "info_hardpoint", OnCheckpointCreated )
 	AddCreateCallback( "prop_script", OnPropScriptCreated )
 	AddCreateCallback( "npc_titan", OnNukeTitanSpawn )
+	
+	SetGameModeScoreBarUpdateRules( GameModeScoreBarRules_PLD )
 	
 	file.checkpointARui = CreateCockpitRui( $"ui/cp_hardpoint_marker.rpak", 100 )
 	file.checkpointBRui = CreateCockpitRui( $"ui/cp_hardpoint_marker.rpak", 100 )
@@ -86,6 +90,7 @@ void function ClGamemodePLD_OnClientScriptInit( entity player )
 {
 	RegisterMinimapPackage( "npc_titan", eMinimapObject_npc_titan.AT_BOUNTY_BOSS, $"ui/minimap_object.rpak", PLD_MinimapNukeTitanInit )
 	
+	/*
 	var rui = ClGameState_GetRui()
 	if ( player.GetTeam() == TEAM_IMC )
 	{
@@ -96,6 +101,33 @@ void function ClGamemodePLD_OnClientScriptInit( entity player )
 	{
 		RuiTrackInt( rui, "friendlyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "milChevronState" ) )
 		RuiTrackInt( rui, "enemyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "imcChevronState" ) )
+	}
+	*/
+}
+
+void function GameModeScoreBarRules_PLD( var rui )
+{
+	entity player = GetLocalClientPlayer()
+	if ( !IsValid( player ) )
+		return
+	
+	float harvesterShieldAmount = float ( GetGlobalNetInt( "militiaHarvesterShield" ) + ( 256 * GetGlobalNetInt( "militiaHarvesterShield256" ) ) )
+	float nukeTitanShieldAmount = float ( GetGlobalNetInt( "nukeTitanShield" ) + ( 256 * GetGlobalNetInt( "nukeTitanShield256" ) ) )
+	
+	RuiSetInt( rui, "maxTeamScore",  PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	if ( player.GetTeam() == TEAM_IMC )
+	{
+		RuiSetFloat( rui, "leftTeamScore", nukeTitanShieldAmount )
+		RuiSetFloat( rui, "rightTeamScore", harvesterShieldAmount )
+		RuiSetInt( rui, "friendlyChevronState", GetGlobalNetInt( "imcChevronState" ) )
+		RuiSetInt( rui, "enemyChevronState", GetGlobalNetInt( "milChevronState" ) )
+	}
+	else
+	{
+		RuiSetFloat( rui, "leftTeamScore", harvesterShieldAmount )
+		RuiSetFloat( rui, "rightTeamScore", nukeTitanShieldAmount )
+		RuiSetInt( rui, "friendlyChevronState", GetGlobalNetInt( "milChevronState" ) )
+		RuiSetInt( rui, "enemyChevronState", GetGlobalNetInt( "imcChevronState" ) )
 	}
 }
 
@@ -418,12 +450,12 @@ void function PLD_AnnounceCheckpointReached( entity ent, var info )
 
 /*
 
-███╗   ███╗██╗   ██╗███████╗██╗ ██████╗
-████╗ ████║██║   ██║██╔════╝██║██╔════╝
-██╔████╔██║██║   ██║███████╗██║██║     
-██║╚██╔╝██║██║   ██║╚════██║██║██║     
-██║ ╚═╝ ██║╚██████╔╝███████║██║╚██████╗
-╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
+███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗      ██████╗ █████╗ ██╗     ██╗     ██████╗  █████╗  ██████╗██╗  ██╗███████╗
+██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗    ██╔════╝██╔══██╗██║     ██║     ██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝
+███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝    ██║     ███████║██║     ██║     ██████╔╝███████║██║     █████╔╝ ███████╗
+╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗    ██║     ██╔══██║██║     ██║     ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║
+███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║    ╚██████╗██║  ██║███████╗███████╗██████╔╝██║  ██║╚██████╗██║  ██╗███████║
+╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝     ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝
 
 */
 

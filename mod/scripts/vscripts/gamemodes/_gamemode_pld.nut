@@ -31,8 +31,6 @@ const int PAYLOAD_SCORE_OBJECTIVE_ESCORT_BONUS = 30
 const int PAYLOAD_SCORE_OBJECTIVE_SHIELD_HARVESTER = 35
 const int PAYLOAD_SCORE_OBJECTIVE_SHIELD_TITAN = 20
 
-const int PLD_MAX_SHIELD_NUKE_AND_HARVESTER = 25000
-
 const asset NUKETITAN_SHIELDWALL = $"P_shield_hld_01_CP" // "P_turret_shield_wall" is also a potential use
 
 
@@ -282,6 +280,7 @@ void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var da
 
 void function PLD_ShieldedNukeTitan( entity rider, entity titan, entity battery )
 {
+	UpdateShieldTrackingOfNukeOrHarvester( titan, PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
 	foreach ( player in GetPlayerArray() )
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanBattery )
 	
@@ -566,6 +565,7 @@ void function Payload_SpawnNukeTitan()
 	entity soul = npc.GetTitanSoul()
 	soul.SetPreventCrits( true )
 	soul.SetShieldHealthMax( PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	SetGlobalNetEnt( "nukeTitanSoul", soul )
 	
 	npc.AssaultSetFightRadius( 0 )
 	npc.SetDangerousAreaReactionTime( 99 )
@@ -1041,13 +1041,20 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 			SetWinner( TEAM_IMC, "#PLD_VICTORY_MESSAGE_OBJECTIVE", "#PLD_DEFEAT_MESSAGE_OBJECTIVE" )
 		}
 	}
+	
+	UpdateShieldTrackingOfNukeOrHarvester( harvester, harvester.GetShieldHealth() )
 }
 
 void function OnNukeTitanDamaged( entity npc, var damageInfo )
 {
 	entity soul = npc.GetTitanSoul()
-	if ( soul.GetShieldHealth() == 0 )
-		DamageInfo_ScaleDamage( damageInfo, 0.0 ) // Basically invulnerability
+	
+	if( IsValid( soul ) )
+	{
+		UpdateShieldTrackingOfNukeOrHarvester( npc, soul.GetShieldHealth() )
+		if ( soul.GetShieldHealth() == 0 )
+			DamageInfo_ScaleDamage( damageInfo, 0.0 ) // Basically invulnerability
+	}
 }
 
 
@@ -1146,6 +1153,7 @@ function PayloadUseBatteryFunc( batteryPortvar, playervar )
 	shieldToBoost += harvester.GetShieldHealthMax() / 4
 	
     harvester.SetShieldHealth( min( shieldToBoost, harvester.GetShieldHealthMax() ) )
+	UpdateShieldTrackingOfNukeOrHarvester( harvester, minint( shieldToBoost, harvester.GetShieldHealthMax() ) )
 	
 	if ( !IsValid( file.militiaHarvester.particleShield ) )
 	{
@@ -1226,4 +1234,22 @@ void function PLD_PilotEndRodeo( entity pilot, entity titan )
 	
 	if ( pilot.IsInvulnerable() )
 		pilot.ClearInvulnerable()
+}
+
+void function UpdateShieldTrackingOfNukeOrHarvester( entity ent, int shieldAmount )
+{
+	int shieldStack = int( max( ( shieldAmount - ( shieldAmount % 256 ) ) / 256, 0 ) )
+	int shieldRemainder = ( shieldAmount % 256 )
+
+	if( ent == file.theNukeTitan )
+	{
+		SetGlobalNetInt( "nukeTitanShield", shieldRemainder )
+		SetGlobalNetInt( "nukeTitanShield256", shieldStack )
+	}
+	
+	else if( ent == file.militiaHarvester.harvester )
+	{
+		SetGlobalNetInt( "militiaHarvesterShield", shieldRemainder )
+		SetGlobalNetInt( "militiaHarvesterShield256", shieldStack )
+	}
 }

@@ -2,6 +2,8 @@ global function Sh_GamemodePayload_Init
 
 global const string GAMEMODE_PLD = "payload"
 
+global const int PLD_MAX_SHIELD_NUKE_AND_HARVESTER = 25000
+
 global enum ePLDTutorials
 {
 	Teams,
@@ -59,6 +61,7 @@ void function PLDRegisterNetworkVars()
 	RegisterNetworkedVariable( "checkpoint2Ent", SNDC_GLOBAL, SNVT_ENTITY )
 	
 	RegisterNetworkedVariable( "militiaHarvester", SNDC_GLOBAL, SNVT_ENTITY )
+	RegisterNetworkedVariable( "nukeTitanSoul", SNDC_GLOBAL, SNVT_ENTITY )
 	
 	RegisterNetworkedVariable( "objective0State", SNDC_GLOBAL, SNVT_INT )
 	RegisterNetworkedVariable( "objective1State", SNDC_GLOBAL, SNVT_INT )
@@ -74,6 +77,12 @@ void function PLDRegisterNetworkVars()
 	
 	RegisterNetworkedVariable( "imcChevronState", SNDC_GLOBAL, SNVT_INT )
 	RegisterNetworkedVariable( "milChevronState", SNDC_GLOBAL, SNVT_INT )
+	
+	RegisterNetworkedVariable( "militiaHarvesterShield", SNDC_GLOBAL, SNVT_UNSIGNED_INT, 0 )
+	RegisterNetworkedVariable( "militiaHarvesterShield256", SNDC_GLOBAL, SNVT_UNSIGNED_INT, 0 )
+	
+	RegisterNetworkedVariable( "nukeTitanShield", SNDC_GLOBAL, SNVT_UNSIGNED_INT, 0 )
+	RegisterNetworkedVariable( "nukeTitanShield256", SNDC_GLOBAL, SNVT_UNSIGNED_INT, 0 )
 	
 	RegisterNetworkedVariable( "showOverheadIcon", SNDC_TITAN_SOUL, SNVT_BOOL, false )
 	
