@@ -768,6 +768,16 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 		
 		if ( soul.GetShieldHealth() == 0 )
 		{
+			if ( nearbyFriendlies.len() )
+				SetGlobalNetInt( "imcChevronState", nearbyFriendlies.len() )
+			else
+				SetGlobalNetInt( "imcChevronState", 0 )
+			
+			if ( nearbyEnemies.len() )
+				SetGlobalNetInt( "milChevronState", nearbyEnemies.len() )
+			else
+				SetGlobalNetInt( "milChevronState", 0 )
+			
 			if ( !nearbyFriendlies.len() && file.nukeIsMoving || nearbyEnemies.len() )
 			{
 				titan.Signal( "PayloadNukeTitanStopped" )
@@ -807,6 +817,9 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 		}
 		else
 		{
+			SetGlobalNetInt( "imcChevronState", 3 )
+			SetGlobalNetInt( "milChevronState", 0 )
+			
 			if ( !file.nukeIsMoving )
 			{
 				file.nukeIsMoving = true
