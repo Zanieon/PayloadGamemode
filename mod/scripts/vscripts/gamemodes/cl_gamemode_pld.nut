@@ -14,6 +14,8 @@ struct {
 	
 	var harvesterRui
 	var tutorialTip
+	
+	bool musicPlaying = false
 } file
 
 table< int, bool > tutorialShown
@@ -427,8 +429,12 @@ void function PLD_AnnounceCheckpointReached( entity ent, var info )
 
 void function ServerCallback_PLD_PlayBattleMusic()
 {
+	if ( file.musicPlaying )
+		return
+	
 	StopMusic()
 	thread ForceLoopMusic_DEPRECATED( eMusicPieceID.GAMEMODE_1 )
+	file.musicPlaying = true
 }
 
 

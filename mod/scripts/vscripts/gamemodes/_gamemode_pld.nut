@@ -51,8 +51,6 @@ struct {
 	table< entity, PayloadPlayer > matchPlayers
 	table< entity, array< entity > > checkPoints
 	
-	array< entity > playerMusicStarted
-	
 	array< void functionref() > payloadCallbacks
 	
 	vector nukeTitanSpawnSpot = < 0, 0, 0 >
@@ -174,10 +172,7 @@ void function StartHarvesterAndPrepareNukeTitan_threaded()
 	
 	MessageToAll( eEventNotifications.TEMP_TitanGreenRoom )
 	foreach ( player in GetPlayerArray() )
-	{
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
-		file.playerMusicStarted.append( player )
-	}
 	
 	wait 5
 	
@@ -222,12 +217,7 @@ void function TrackPlayerTimeForPushOrHalt( entity player )
 	while( !IsValid( file.theNukeTitan ) ) // Wait for the Nuke Titan to spawn in
 		WaitFrame()
 	
-	if( !file.playerMusicStarted.contains( player ) )
-	{
-		file.playerMusicStarted.append( player )
-		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
-	}
-	
+	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
 	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.Teams )
 	
 	while( IsValidPlayer( player ) )
@@ -274,9 +264,6 @@ void function GamemodePLD_PlayerDisconnected( entity player )
 {
 	if ( player in file.matchPlayers )
 		delete file.matchPlayers[player]
-	
-	if( file.playerMusicStarted.contains( player ) )
-		file.playerMusicStarted.removebyvalue( player )
 }
 
 void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var damageInfo )
