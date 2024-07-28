@@ -1,6 +1,6 @@
 global function ClGamemodePLD_Init
 global function CLPayload_RegisterNetworkFunctions
-global function ServerCallback_PLD_PlayBattleMusic
+global function ServerCallback_PLD_SyncSettings
 global function ServerCallback_PLD_ShowTutorialHint
 
 struct {
@@ -15,10 +15,9 @@ struct {
 	var harvesterRui
 	var tutorialTip
 	
-	bool musicPlaying = false
-	
 	entity militiaHarvester
 	entity theNukeTitan
+	int nukeHarvesterShieldMax = 25000
 } file
 
 table< int, bool > tutorialShown
@@ -56,9 +55,9 @@ void function ClGamemodePLD_Init()
 
 	RegisterLevelMusicForTeam( eMusicPieceID.LEVEL_LOSS, "music_mp_lts_outro_lose", TEAM_IMC )
 	RegisterLevelMusicForTeam( eMusicPieceID.LEVEL_LOSS, "music_mp_coliseum_round_lose", TEAM_MILITIA )
-
-	RegisterLevelMusicForTeam( eMusicPieceID.GAMEMODE_1, "music_s2s_04_maltabattle_alt", TEAM_IMC )
-	RegisterLevelMusicForTeam( eMusicPieceID.GAMEMODE_1, "music_s2s_04_maltabattle_alt", TEAM_MILITIA )
+	
+	RegisterLevelMusicForTeam( eMusicPieceID.LEVEL_SUDDEN_DEATH, "music_mp_pilothunt_epilogue_lose", TEAM_IMC )
+	RegisterLevelMusicForTeam( eMusicPieceID.LEVEL_SUDDEN_DEATH, "music_mp_pilothunt_epilogue_win", TEAM_MILITIA )
 	
 	ClGameState_RegisterGameStateAsset( $"ui/gamestate_info_cp.rpak" )
 	
@@ -89,20 +88,6 @@ void function ClGamemodePLD_Init()
 void function ClGamemodePLD_OnClientScriptInit( entity player )
 {
 	RegisterMinimapPackage( "npc_titan", eMinimapObject_npc_titan.AT_BOUNTY_BOSS, $"ui/minimap_object.rpak", PLD_MinimapNukeTitanInit )
-	
-	/*
-	var rui = ClGameState_GetRui()
-	if ( player.GetTeam() == TEAM_IMC )
-	{
-		RuiTrackInt( rui, "friendlyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "imcChevronState" ) )
-		RuiTrackInt( rui, "enemyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "milChevronState" ) )
-	}
-	else
-	{
-		RuiTrackInt( rui, "friendlyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "milChevronState" ) )
-		RuiTrackInt( rui, "enemyChevronState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( "imcChevronState" ) )
-	}
-	*/
 }
 
 void function GameModeScoreBarRules_PLD( var rui )
@@ -114,7 +99,7 @@ void function GameModeScoreBarRules_PLD( var rui )
 	float harvesterShieldAmount = float ( GetGlobalNetInt( "militiaHarvesterShield" ) + ( 256 * GetGlobalNetInt( "militiaHarvesterShield256" ) ) )
 	float nukeTitanShieldAmount = float ( GetGlobalNetInt( "nukeTitanShield" ) + ( 256 * GetGlobalNetInt( "nukeTitanShield256" ) ) )
 	
-	RuiSetInt( rui, "maxTeamScore",  PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	RuiSetInt( rui, "maxTeamScore",  file.nukeHarvesterShieldMax )
 	if ( player.GetTeam() == TEAM_IMC )
 	{
 		RuiSetFloat( rui, "leftTeamScore", nukeTitanShieldAmount )
@@ -197,7 +182,7 @@ void function OnPropScriptCreated( entity prop )
 		RuiTrackFloat3( file.harvesterRui, "pos", prop, RUI_TRACK_ABSORIGIN_FOLLOW )
 	}
 	
-	if ( GetLocalViewPlayer().GetTeam() == TEAM_MILITIA && prop.GetTeam() == TEAM_MILITIA && prop.GetTargetName() == "harvesterBoostPort" )
+	if ( prop.GetTeam() == TEAM_MILITIA && prop.GetTargetName() == "harvesterBoostPort" )
 		thread AddOverheadIcon( prop, $"rui/hud/battery/battery_generator", false )
 }
 
@@ -316,7 +301,6 @@ void function OnCheckpointCreated_Thread( entity hardpoint )
 
 	RuiTrackInt( rui, "hardpointState", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL_INT, GetNetworkedVariableIndex( stateVar ) )
 	RuiTrackFloat( rui, "progressFrac", null, RUI_TRACK_SCRIPT_NETWORK_VAR_GLOBAL, GetNetworkedVariableIndex( progressVar ) )
-
 
 	RuiSetBool(  rui, "isVisible", true )
 
@@ -459,14 +443,9 @@ void function PLD_AnnounceCheckpointReached( entity ent, var info )
 
 */
 
-void function ServerCallback_PLD_PlayBattleMusic()
+void function ServerCallback_PLD_SyncSettings( int nukeHarvShieldMax )
 {
-	if ( file.musicPlaying )
-		return
-	
-	StopMusic()
-	thread ForceLoopMusic_DEPRECATED( eMusicPieceID.GAMEMODE_1 )
-	file.musicPlaying = true
+	file.nukeHarvesterShieldMax = nukeHarvShieldMax
 }
 
 

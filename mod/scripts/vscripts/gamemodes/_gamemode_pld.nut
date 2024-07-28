@@ -19,8 +19,8 @@ global function AddCallback_PayloadMode
 const float PLD_HARVESTER_PERIMETER_DIST = 8000.0
 const float PLD_PUSH_DIST = 400.0
 const float PLD_BASE_NUKE_TITAN_MOVESPEED_SCALE = 0.1
-const float PLD_PATH_TRACKER_REFRESH_FREQUENCY = 5
-const float PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS = 0.5
+const float PLD_PATH_TRACKER_REFRESH_FREQUENCY = 2
+const float PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS = 1
 
 const int PAYLOAD_SCORE_OBJECTIVE_DEFENSE_KILL = 6
 const int PAYLOAD_SCORE_OBJECTIVE_DEFENSE_BONUS = 15
@@ -67,6 +67,8 @@ struct {
 	int capturedCheckpoints = 0
 	
 	int nukeTitanShieldHack = 0
+	int nukeHarvesterShieldMax = 25000
+	int checkpointBonusTime = 5
 }file
 
 
@@ -140,6 +142,9 @@ void function GamemodePLD_Init()
 	ScoreEvent_SetXPValueFaction( GetScoreEvent( "ChallengeTTDM" ), 1 )
 	
 	level.endOfRoundPlayerState = ENDROUND_MOVEONLY
+	
+	file.nukeHarvesterShieldMax = GetCurrentPlaylistVarInt( "pld_harvester_nuke_shield_amount", 25000 )
+	file.checkpointBonusTime = GetCurrentPlaylistVarInt( "pld_checkpoint_bonus_time", 5 )
 }
 
 void function LoadPayloadContent()
@@ -174,8 +179,6 @@ void function StartHarvesterAndPrepareNukeTitan_threaded()
 	wait 15
 	
 	MessageToAll( eEventNotifications.TEMP_TitanGreenRoom )
-	foreach ( player in GetPlayerArray() )
-		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
 	
 	wait 5
 	
@@ -220,7 +223,7 @@ void function TrackPlayerTimeForPushOrHalt( entity player )
 	while( !IsValid( file.theNukeTitan ) ) // Wait for the Nuke Titan to spawn in
 		WaitFrame()
 	
-	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_PlayBattleMusic" )
+	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_SyncSettings", file.nukeHarvesterShieldMax )
 	Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.Teams )
 	
 	while( IsValidPlayer( player ) )
@@ -283,7 +286,7 @@ void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var da
 
 void function PLD_ShieldedNukeTitan( entity rider, entity titan, entity battery )
 {
-	UpdateShieldTrackingOfNukeOrHarvester( titan, PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	UpdateShieldTrackingOfNukeOrHarvester( titan, file.nukeHarvesterShieldMax )
 	foreach ( player in GetPlayerArray() )
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanBattery )
 	
@@ -516,7 +519,7 @@ void function Payload_SpawnHarvester()
 	SetTargetName( file.militiaHarvester.harvester, "militiaHarvester" )
 	SetGlobalNetEnt( "militiaHarvester", file.militiaHarvester.harvester )
 	
-	file.militiaHarvester.harvester.SetShieldHealthMax( PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	file.militiaHarvester.harvester.SetShieldHealthMax( file.nukeHarvesterShieldMax )
 	file.militiaHarvester.harvester.Minimap_SetAlignUpright( true )
 	file.militiaHarvester.harvester.Minimap_AlwaysShow( TEAM_IMC, null )
 	file.militiaHarvester.harvester.Minimap_AlwaysShow( TEAM_MILITIA, null )
@@ -568,11 +571,11 @@ void function Payload_SpawnNukeTitan()
 	
 	entity soul = npc.GetTitanSoul()
 	soul.SetPreventCrits( true )
-	soul.SetShieldHealthMax( PLD_MAX_SHIELD_NUKE_AND_HARVESTER )
+	soul.SetShieldHealthMax( file.nukeHarvesterShieldMax )
 	SetGlobalNetEnt( "nukeTitanSoul", soul )
 	
 	npc.AssaultSetFightRadius( 0 )
-	npc.SetDangerousAreaReactionTime( 99 )
+	npc.SetDangerousAreaReactionTime( 30 )
 	
 	npc.Minimap_AlwaysShow( TEAM_IMC, null )
 	npc.Minimap_AlwaysShow( TEAM_MILITIA, null )
@@ -626,7 +629,7 @@ void function AddTurretSentry( entity turret )
 
 void function OnNukeTitanEnteredCheckpoint( entity trigger, entity titan )
 {
-	if ( titan != file.theNukeTitan )
+	if ( titan != file.theNukeTitan || !GamePlaying() )
 		return
 	
 	entity checkpoint = trigger.GetParent()
@@ -659,8 +662,8 @@ void function OnNukeTitanEnteredCheckpoint( entity trigger, entity titan )
 	
 	int timeLimit = GameMode_GetTimeLimit( GAMETYPE ) * 60
 	
-	SetServerVar( "gameEndTime", Time() + ( 60 * 5 ) )
-	SetServerVar( "roundEndTime", Time() + ( 60 * 5 ) )
+	SetServerVar( "gameEndTime", Time() + ( 60 * file.checkpointBonusTime ) )
+	SetServerVar( "roundEndTime", Time() + ( 60 * file.checkpointBonusTime ) )
 	
 	trigger.Destroy()
 }
@@ -734,7 +737,7 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 {
 	titan.EndSignal( "OnDeath" )
 	titan.EndSignal( "OnDestroy" )
-	titan.EndSignal( "FD_ReachedHarvester" )
+	titan.EndSignal( "TitanEjectionStarted" ) // We only stop this if the Titan is successfully nuking nearby the Harvester
 	
 	entity soul = titan.GetTitanSoul()
 	soul.EndSignal( "OnDeath" )
@@ -1162,7 +1165,7 @@ function PayloadBatteryPortUseCheck( batteryPortvar, playervar )
     if ( !IsValid( harvester ) )
         return false
 
-    return ( PlayerHasBattery( player ) && player.GetTeam() == harvester.GetTeam() && harvester.GetShieldHealth() < harvester.GetShieldHealthMax() )
+    return ( PlayerHasBattery( player ) && player.GetTeam() == harvester.GetTeam() && harvester.GetShieldHealth() < harvester.GetShieldHealthMax() && harvester.GetHealth() > 1 )
 }
 
 function PayloadUseBatteryFunc( batteryPortvar, playervar )
@@ -1222,7 +1225,6 @@ void function Payload_ShowRouteHologram()
 	
 	while( true )
 	{
-		PlayLoopFXOnEntity( $"P_ar_holopilot_trail", mover )
 		PlayLoopFXOnEntity( FLAG_FX_FRIENDLY, mover )
 		
 		mover.NonPhysicsMoveTo( routepoint, PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS, 0.0, 0.0 )

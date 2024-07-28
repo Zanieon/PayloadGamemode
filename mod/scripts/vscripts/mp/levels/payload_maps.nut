@@ -285,7 +285,7 @@ void function ExecEdenPayload()
 	AddPayloadRouteNode( < 1579, -1627, 64 > )
 	AddPayloadRouteNode( < 2424, -1332, 66 > )
 	AddPayloadRouteNode( < 2480, 837, 56 > )
-	AddPayloadRouteNode( < 3323, 2577, 67 > )
+	AddPayloadRouteNode( < 3331, 2480, 64 > )
 	
 	AddPayloadFixedSpawnZoneForTeam( TEAM_IMC, < -1404, 2474, 306 >, 1000 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 2595, 3017, 120 >, 800 )
