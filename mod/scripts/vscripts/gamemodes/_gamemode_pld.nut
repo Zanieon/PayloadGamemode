@@ -571,6 +571,7 @@ void function Payload_SpawnNukeTitan()
 	
 	entity soul = npc.GetTitanSoul()
 	soul.SetPreventCrits( true )
+	soul.SetDamageNotifications( false )
 	soul.SetShieldHealthMax( file.nukeHarvesterShieldMax )
 	SetGlobalNetEnt( "nukeTitanSoul", soul )
 	
@@ -599,9 +600,8 @@ void function AddTurretSentry( entity turret )
 	entity player = turret.GetBossPlayer()
 	if ( player != null )
 	{
-		turret.SetMaxHealth( DEPLOYABLE_TURRET_HEALTH )
-		turret.SetHealth( DEPLOYABLE_TURRET_HEALTH )
 		turret.kv.AccuracyMultiplier = DEPLOYABLE_TURRET_ACCURACY_MULTIPLIER
+		turret.kv.meleeable = 0
 		if ( turret.GetMainWeapons()[0].GetWeaponClassName() == "mp_weapon_yh803_bullet" )
 			turret.GetMainWeapons()[0].AddMod( "fd" )
 	}
@@ -1084,7 +1084,7 @@ void function OnNukeTitanPostDamaged( entity npc, var damageInfo )
 		
 		UpdateShieldTrackingOfNukeOrHarvester( npc, soul.GetShieldHealth() )
 		if ( soul.GetShieldHealth() == 0 )
-			DamageInfo_ScaleDamage( damageInfo, 0.0 ) // Basically invulnerability
+			DamageInfo_SetDamage( damageInfo, 0.0 ) // Basically invulnerability
 	}
 }
 
@@ -1110,7 +1110,7 @@ void function OnNukeTitanPostDamaged( entity npc, var damageInfo )
 
 int function PLD_TimeoutWinner()
 {
-	if (  !IsAlive( file.theNukeTitan ) && IsValid( file.militiaHarvester.harvester ) && file.militiaHarvester.harvester.GetHealth() > 0 )
+	if (  !IsAlive( file.theNukeTitan ) && IsValid( file.militiaHarvester.harvester ) && file.militiaHarvester.harvester.GetHealth() > 1 )
 		return TEAM_UNASSIGNED
 	
 	// Make those score overrides because reason message won't display properly if both teams are still tied by this moment
