@@ -17,7 +17,7 @@ global function AddCallback_PayloadMode
 
 
 const float PLD_HARVESTER_PERIMETER_DIST = 8000.0
-const float PLD_PUSH_DIST = 400.0
+const float PLD_PUSH_DIST = 500.0
 const float PLD_BASE_NUKE_TITAN_MOVESPEED_SCALE = 0.1
 const float PLD_PATH_TRACKER_REFRESH_FREQUENCY = 2
 const float PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS = 1
@@ -290,7 +290,7 @@ void function PLD_ShieldedNukeTitan( entity rider, entity titan, entity battery 
 	foreach ( player in GetPlayerArray() )
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PLD_ShowTutorialHint", ePLDTutorials.NukeTitanBattery )
 	
-	rider.AddToPlayerGameStat( PGS_DEFENSE_SCORE, PAYLOAD_SCORE_OBJECTIVE_SHIELD_TITAN )
+	rider.AddToPlayerGameStat( PGS_ASSAULT_SCORE, PAYLOAD_SCORE_OBJECTIVE_SHIELD_TITAN )
 }
 
 
@@ -735,6 +735,8 @@ void function Payload_WaitForNukeTitanDeath( entity titan )
 
 void function PayloadNukeTitanProximityChecker( entity titan )
 {
+	svGlobal.levelEnt.EndSignal( "GameStateChanged" ) // Stop this for any change game state, timeout or winner determined in case
+	
 	titan.EndSignal( "OnDeath" )
 	titan.EndSignal( "OnDestroy" )
 	titan.EndSignal( "TitanEjectionStarted" ) // We only stop this if the Titan is successfully nuking nearby the Harvester
@@ -849,6 +851,7 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 
 void function MovePayloadNukeTitan( entity titan, int routeindex )
 {
+	svGlobal.levelEnt.EndSignal( "GameStateChanged" )
 	titan.EndSignal( "PayloadNukeTitanStopped" )
 	titan.EndSignal( "OnDeath" )
 	titan.EndSignal( "OnDestroy" )
@@ -859,7 +862,7 @@ void function MovePayloadNukeTitan( entity titan, int routeindex )
 	{
 		titan.AssaultPointClamped( routepoint )
 			
-		table result = titan.WaitSignal( "OnFinishedAssault", "OnEnterGoalRadius" )
+		table result = titan.WaitSignal( "OnFinishedAssault" )
 		routeindex++
 		if ( routeindex < file.payloadRoute.len() )
 		{

@@ -16,7 +16,7 @@ playlists
 				color "64 192 255 255"
 				
 				run_evac 0
-				respawn_delay 7
+				respawn_delay 8
 				max_players 16
 				max_teams 2
 				timelimit 6
@@ -25,7 +25,6 @@ playlists
 				riff_allow_npcs 1
 				riff_titan_availability 3
 				riff_titan_exit_enabled 2
-				featured_mode_amped_tacticals 1
 				boosts_enabled 0
 				riff_team_share_earn_meter 1
                 riff_team_share_earn_meter_scale 0.5
