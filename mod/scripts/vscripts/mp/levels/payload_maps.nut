@@ -4,7 +4,7 @@ global function PayloadCallback_MapInit
 
 void function PayloadCallback_MapInit()
 {
-	if( IsLobby() ) // Don't wanna this to trigger on menus
+	if( IsLobby() || GameRules_GetGameMode() != GAMEMODE_PLD ) // Don't wanna this to trigger on menus nor outside payload mode itself
 		return
 	
 	switch ( GetMapName() )
