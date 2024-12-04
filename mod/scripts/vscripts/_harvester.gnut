@@ -61,7 +61,8 @@ HarvesterStruct function SpawnHarvester( vector origin, vector angles, int healt
 	SetVisibleEntitiesInConeQueriableEnabled( harvester, true )
 	SetTeam( harvester, team )
 	AI_CreateDangerousArea_Static( harvester, null, 160, TEAM_INVALID, true, true, origin )
-	CreateNoSpawnArea( TEAM_INVALID, TEAM_INVALID, origin, 0, 160 ) //Prevent people calling Titans inside the Harvester
+	CreateNoSpawnArea( TEAM_INVALID, TEAM_INVALID, origin, 0, 160 ) // Prevent spawnpoints being used if they overlap with the Harvester
+	AddTitanfallBlocker( origin, 160, 512 ) //Prevent people calling Titans inside the Harvester
 
 	entity blackbox = CreatePropScript( MODEL_HARVESTER_TOWER_COLLISION, origin, angles, 0 )
 	ToggleNPCPathsForEntity( blackbox, false )

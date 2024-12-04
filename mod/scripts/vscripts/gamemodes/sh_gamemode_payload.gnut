@@ -16,6 +16,7 @@ void function Sh_GamemodePayload_Init()
 	
 	AddPrivateMatchModeSettingArbitrary( "#PL_payload", "pld_harvester_nuke_shield_amount", "25000" )
 	AddPrivateMatchModeSettingArbitrary( "#PL_payload", "pld_checkpoint_bonus_time", "5" )
+	AddPrivateMatchModeSettingEnum( "#PL_payload", "pld_gruntplayers", [ "False", "True" ], "0"  )
 	
 	AddCallback_OnCustomGamemodesInit( CreateGamemodePLD )
 	AddCallback_OnRegisteringCustomNetworkVars( PLDRegisterNetworkVars )

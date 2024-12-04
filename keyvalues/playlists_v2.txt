@@ -15,8 +15,8 @@ playlists
 				image cp
 				color "64 192 255 255"
 				
-				run_evac 0
-				respawn_delay 8
+				run_epilogue 0
+				respawn_delay 3
 				max_players 16
 				max_teams 2
 				timelimit 6
@@ -28,6 +28,7 @@ playlists
 				boosts_enabled 0
 				riff_team_share_earn_meter 1
                 riff_team_share_earn_meter_scale 0.5
+				
 				pld_harvester_nuke_shield_amount 25000
 				pld_checkpoint_bonus_time 5
 				
@@ -38,6 +39,7 @@ playlists
 				gamemode_bullet_004	#GAMEMODE_BULLET_PLD_004
 				gamemode_bullet_005	#GAMEMODE_BULLET_PLD_005
 			}
+			
 			maps
 			{
 				mp_angel_city 1
@@ -49,6 +51,7 @@ playlists
 			}
 		}
 	}
+	
 	Playlists
 	{
 		payload
@@ -66,24 +69,6 @@ playlists
 				mixtape_promo_slot 4
 				visible 1
 			}
-			gamemodes
-			{
-				payload
-				{
-					maps
-					{
-						mp_angel_city 1
-						mp_black_water_canal 1
-						mp_drydock 1
-						mp_thaw 1
-						mp_eden 1
-						mp_fordwardbase_kodai 1
-					}
-				}
-			}
-		}
-		private_match
-		{
 			gamemodes
 			{
 				payload

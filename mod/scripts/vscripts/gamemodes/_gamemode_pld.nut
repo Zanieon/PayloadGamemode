@@ -6,6 +6,7 @@ global function RateSpawnpoints_PLD
 global function Payload_SetMilitiaHarvesterLocation
 global function Payload_SetNukeTitanSpawnLocation
 
+global function CreatePayloadSpawnZone
 global function AddPayloadCheckpointWithZones
 global function AddPayloadCustomMapProp
 global function AddPayloadCustomShipStart
@@ -16,8 +17,8 @@ global function AddCallback_PayloadMode
 
 
 
-const float PLD_HARVESTER_PERIMETER_DIST = 8000.0
-const float PLD_PUSH_DIST = 500.0
+const float PLD_HARVESTER_PERIMETER_DIST = 2000.0
+const float PLD_PUSH_DIST = 300.0
 const float PLD_BASE_NUKE_TITAN_MOVESPEED_SCALE = 0.1
 const float PLD_PATH_TRACKER_REFRESH_FREQUENCY = 2
 const float PLD_PATH_TRACKER_MOVE_TIME_BETWEN_POINTS = 1
@@ -30,8 +31,10 @@ const int PAYLOAD_SCORE_OBJECTIVE_ESCORT_KILL = 2
 const int PAYLOAD_SCORE_OBJECTIVE_ESCORT_BONUS = 30
 const int PAYLOAD_SCORE_OBJECTIVE_SHIELD_HARVESTER = 35
 const int PAYLOAD_SCORE_OBJECTIVE_SHIELD_TITAN = 20
+const int PAYLOAD_GRUNTS_PER_TEAM = 6
 
-const asset NUKETITAN_SHIELDWALL = $"P_shield_hld_01_CP" // "P_turret_shield_wall" is also a potential use
+const asset NUKETITAN_SHIELDWALL = $"P_turret_shield_wall" // "P_shield_hld_01_CP" is also a potential use
+const asset NUKETITAN_PUSHRADIUS_MODEL = $"models/fort_war/fw_turret_territory_512.mdl" // Frontier War Zone Glow, matches push trigger of Nuke Titan
 
 
 
@@ -96,6 +99,7 @@ void function GamemodePLD_Init()
 	PrecacheModel( CTF_FLAG_BASE_MODEL )
 	PrecacheModel( MODEL_FRONTIER_DEFENSE_PORT )
 	PrecacheModel( MODEL_FRONTIER_DEFENSE_TURRET_SITE )
+	PrecacheModel( NUKETITAN_PUSHRADIUS_MODEL )
 	
 	PrecacheParticleSystem( FLAG_FX_FRIENDLY )
 	
@@ -106,7 +110,6 @@ void function GamemodePLD_Init()
 	SetTimeoutWinnerDecisionFunc( PLD_TimeoutWinner )
 	SetGameModeRulesEarnMeterOnDamage( GameModeRulesEarnMeterOnDamage_PLD )
 	
-	ClassicMP_ForceDisableEpilogue( true )
 	AddCallback_EntitiesDidLoad( LoadPayloadContent )
 	
 	AddCallback_OnClientConnected( GamemodePLD_InitPlayer )
@@ -119,6 +122,7 @@ void function GamemodePLD_Init()
 	
 	AddCallback_GameStateEnter( eGameState.Prematch, Payload_SpawnHarvester )
 	AddCallback_GameStateEnter( eGameState.Playing, StartHarvesterAndPrepareNukeTitan )
+	AddCallback_GameStateEnter( eGameState.WinnerDetermined, PayloadMatchVictoryDecided )
 	
 	AddSpawnCallback( "npc_turret_sentry", AddTurretSentry )
 	
@@ -126,6 +130,7 @@ void function GamemodePLD_Init()
 	ScoreEvent_SetDisplayType( GetScoreEvent( "PilotBatteryApplied" ), eEventDisplayType.GAMEMODE | eEventDisplayType.MEDAL | eEventDisplayType.CALLINGCARD )
 	ScoreEvent_SetDisplayType( GetScoreEvent( "PilotBatteryStolen" ), eEventDisplayType.GAMEMODE | eEventDisplayType.MEDAL | eEventDisplayType.CALLINGCARD )
 	
+	ScoreEvent_SetupEarnMeterValuesForMixedModes()
 	ScoreEvent_SetEarnMeterValues( "KillPilot", 0.07, 0.1 )
 	ScoreEvent_SetEarnMeterValues( "PilotBatteryStolen", 0.0, 0.5 )
 	ScoreEvent_SetEarnMeterValues( "Headshot", 0.03, 0.07 )
@@ -140,22 +145,51 @@ void function GamemodePLD_Init()
 	ScoreEvent_SetEarnMeterValues( "KilledMVP", 0.01, 0.05 )
 	
 	ScoreEvent_SetXPValueFaction( GetScoreEvent( "ChallengeTTDM" ), 1 )
+	SetAILethality( eAILethality.VeryHigh )
 	
 	level.endOfRoundPlayerState = ENDROUND_MOVEONLY
 	
 	file.nukeHarvesterShieldMax = GetCurrentPlaylistVarInt( "pld_harvester_nuke_shield_amount", 25000 )
 	file.checkpointBonusTime = GetCurrentPlaylistVarInt( "pld_checkpoint_bonus_time", 5 )
+
+	if( GetCurrentPlaylistVarInt( "pld_gruntplayers", 0 ) == 1 )
+		AddCallback_OnPlayerGetsNewPilotLoadout( PLD_OnPlayerGetsNewPilotLoadout )
+	
+	AddDamageFinalCallback( "player", PLD_DamagePlayerScale )
 }
 
 void function LoadPayloadContent()
 {
+	Payload_InitMaps()
 	foreach ( callback in file.payloadCallbacks )
 		callback()
+}
+
+void function PayloadMatchVictoryDecided()
+{
+	foreach ( npc in GetNPCArray() )
+	{
+		npc.ClearAllEnemyMemory()
+		npc.EnableNPCFlag( NPC_DISABLE_SENSING | NPC_IGNORE_ALL )
+	}
 }
 
 void function StartHarvesterAndPrepareNukeTitan()
 {
 	thread StartHarvesterAndPrepareNukeTitan_threaded()
+	thread Spawner_Threaded( TEAM_IMC )
+	thread Spawner_Threaded( TEAM_MILITIA )
+	
+	switch ( GetMapName() )
+	{
+		case "mp_angel_city":
+		case "mp_thaw":
+		case "mp_forwardbase_kodai":
+		case "mp_black_water_canal":
+		case "mp_eden":
+		case "mp_drydock":
+			thread StratonHornetDogfightsIntense()
+	}
 }
 
 void function StartHarvesterAndPrepareNukeTitan_threaded()
@@ -274,7 +308,7 @@ void function GamemodePLD_PlayerDisconnected( entity player )
 
 void function GamemodePLD_OnPlayerKilled( entity victim, entity attacker, var damageInfo )
 {
-	if ( GamePlaying() )
+	if ( !GamePlaying() || !IsValidPlayer( attacker ) )
 		return
 	
 	if( attacker.GetTeam() == TEAM_IMC && file.matchPlayers[victim].nearNukeTitan )
@@ -342,9 +376,18 @@ void function AddPayloadRouteNode( vector origin )
 void function AddPayloadFixedSpawnZoneForTeam( int team, vector zoneLoc, float zoneRadius )
 {
 	entity zone = CreatePropScript( $"models/dev/empty_model.mdl", zoneLoc )
+	zone.DisableHibernation()
 	zone.s.zoneRadius <- zoneRadius
 	SetTeamSpawnZoneMinimapMarker( zone, team )
 	file.payloadSpawnZones.append( zone )
+}
+
+entity function CreatePayloadSpawnZone( vector zoneLoc, float zoneRadius )
+{
+	entity zone = CreatePropScript( $"models/dev/empty_model.mdl", zoneLoc )
+	zone.DisableHibernation()
+	zone.s.zoneRadius <- zoneRadius
+	return zone
 }
 
 void function AddPayloadCheckpointWithZones( int checkpointIndex, vector checkpointPos, array< entity > bindedSpawnZones )
@@ -459,13 +502,20 @@ void function RateSpawnpoints_PLD( int checkClass, array<entity> spawnpoints, in
 					rating += GetConVarFloat( "spawnpoint_last_spawn_rating" )
 			}
 			
-			spawn.CalculateRating( checkClass, team, rating, rating )
+			spawn.CalculateRatingDontCache( checkClass, team, rating, rating )
 		}
 	}
 }
 
 void function PayloadPlayerRespawned( entity player ) // Actual hack because the function above is not doing its job idk why
 {
+	if( GetCurrentPlaylistVarInt( "pld_gruntplayers", 0 ) == 1 )
+	{
+		player.e.hasDefaultEnemyHighlight = false
+		Highlight_ClearEnemyHighlight( player )
+		HideName( player )
+	}
+	
 	array<entity> teamZones
 	foreach ( entity zone in file.payloadSpawnZones )
 	{
@@ -557,7 +607,6 @@ void function Payload_SpawnNukeTitan()
 	SetSpawnOption_Titanfall( npc )
 	SetTargetName( npc, "payloadNukeTitan" )
 	DispatchSpawn( npc )
-	npc.SetNoTarget( true )
 	HideName( npc )
 	npc.EnableNPCFlag( NPC_DISABLE_SENSING | NPC_IGNORE_ALL )
 	npc.EnableNPCMoveFlag( NPCMF_WALK_ALWAYS | NPCMF_WALK_NONCOMBAT )
@@ -589,6 +638,10 @@ void function Payload_SpawnNukeTitan()
 	npc.EndSignal( "OnDestroy" )
 	NukeTitanThink( npc, file.militiaHarvester.harvester )
 	
+	entity radiusModel = CreatePropDynamic( NUKETITAN_PUSHRADIUS_MODEL, file.nukeTitanSpawnSpot, file.nukeTitanSpawnAngle, 0 )
+	radiusModel.SetParent( npc )
+
+	npc.SetNPCPriorityOverride_NoThreat()
 	npc.GetTitanSoul().SetTitanSoulNetBool( "showOverheadIcon", true )
 	thread PayloadNukeTitanShieldTracker( npc )
 	thread PayloadNukeTitanProximityChecker( npc )
@@ -597,13 +650,74 @@ void function Payload_SpawnNukeTitan()
 
 void function AddTurretSentry( entity turret )
 {
+	turret.SetShieldHealthMax( 1250 )
+	turret.SetShieldHealth( turret.GetShieldHealthMax() )
 	entity player = turret.GetBossPlayer()
 	if ( player != null )
 	{
-		turret.kv.AccuracyMultiplier = DEPLOYABLE_TURRET_ACCURACY_MULTIPLIER
+		turret.kv.AccuracyMultiplier = 6.0
+		turret.kv.WeaponProficiency = eWeaponProficiency.VERYGOOD
 		turret.kv.meleeable = 0
 		if ( turret.GetMainWeapons()[0].GetWeaponClassName() == "mp_weapon_yh803_bullet" )
 			turret.GetMainWeapons()[0].AddMod( "fd" )
+	}
+}
+
+void function PLD_SpawnDroppodGrunts( entity node, int team )
+{
+	vector pos = node.GetOrigin()
+	entity pod = CreateDropPod( pos, < 0, RandomIntRange( 0, 359 ), 0 > )
+	SetTeam( pod, team )
+	InitFireteamDropPod( pod )
+
+	string squadName = MakeSquadName( team, UniqueString() )
+	array<entity> guys
+
+	for ( int i = 0; i < 4; i++ )
+    {
+		entity guy = CreateSoldier( team, pos, < 0, 0, 0 > )
+		SetSpawnflags( guy, SF_NPC_START_EFFICIENT )
+		SetSpawnOption_Alert( guy )
+		guy.kv.grenadeWeaponName = ["mp_weapon_grenade_electric_smoke","mp_weapon_grenade_emp","mp_weapon_frag_grenade","mp_weapon_thermite_grenade"].getrandom()
+		SetSpawnOption_Weapon( guy, [ "mp_weapon_rspn101", "mp_weapon_dmr", "mp_weapon_vinson", "mp_weapon_hemlok_smg", "mp_weapon_mastiff", "mp_weapon_shotgun_pistol", "mp_weapon_g2", "mp_weapon_doubletake", "mp_weapon_hemlok", "mp_weapon_rspn101_og", "mp_weapon_r97", "mp_weapon_shotgun_doublebarrel", "mp_weapon_esaw", "mp_weapon_lstar", "mp_weapon_shotgun", "mp_weapon_lmg", "mp_weapon_smr", "mp_weapon_epg" ].getrandom() )
+		DispatchSpawn( guy )
+		guy.EnableNPCFlag( NPC_NO_WEAPON_DROP | NPC_NO_PAIN | NPC_NO_GESTURE_PAIN | NPC_ALLOW_PATROL | NPC_ALLOW_INVESTIGATE | NPC_ALLOW_HAND_SIGNALS | NPC_IGNORE_FRIENDLY_SOUND | NPC_NEW_ENEMY_FROM_SOUND | NPC_AIM_DIRECT_AT_ENEMY )
+		guy.DisableNPCFlag( NPC_ALLOW_FLEE )
+		guy.SetParent( pod, "ATTACH", true )
+		SetSquad( guy, squadName )
+
+		foreach ( entity weapon in guy.GetMainWeapons() )
+		{
+			if ( weapon.GetWeaponClassName() == "mp_weapon_rocket_launcher" )
+				guy.TakeWeapon( weapon.GetWeaponClassName() )
+		}
+
+		guy.MakeInvisible()
+		entity weapon = guy.GetActiveWeapon()
+		if ( IsValid( weapon ) )
+			weapon.MakeInvisible()
+		
+		guy.AssaultSetGoalRadius( 640 )
+		guy.AssaultSetGoalHeight( 640 )
+		guy.AssaultSetFightRadius( 2048 )
+		guy.kv.AccuracyMultiplier = 4.0
+		guy.kv.WeaponProficiency = eWeaponProficiency.VERYGOOD
+		guy.SetBehaviorSelector( "behavior_sp_soldier" )
+		spawnedNPCs.append( guy )
+		guys.append( guy )
+	}
+	
+	ToggleSpawnNodeInUse( node, true )
+	waitthread LaunchAnimDropPod( pod, "pod_testpath", pos, < 0, RandomIntRange( 0, 359 ), 0 > )
+	ArrayRemoveDead( guys )
+	ActivateFireteamDropPod( pod, guys )
+	ToggleSpawnNodeInUse( node, false )
+
+	foreach ( npc in guys )
+	{
+		AddMinimapForHumans( npc )
+		npc.SetEfficientMode( false )
+		thread GruntPathsToObjectives( npc )
 	}
 }
 
@@ -659,8 +773,6 @@ void function OnNukeTitanEnteredCheckpoint( entity trigger, entity titan )
 	
 	foreach ( player in GetPlayerArrayOfTeam( TEAM_IMC ) )
 		EmitSoundOnEntityOnlyToPlayer( player, player, "UI_CTF_1P_PlayerScore" )
-	
-	int timeLimit = GameMode_GetTimeLimit( GAMETYPE ) * 60
 	
 	SetServerVar( "gameEndTime", Time() + ( 60 * file.checkpointBonusTime ) )
 	SetServerVar( "roundEndTime", Time() + ( 60 * file.checkpointBonusTime ) )
@@ -727,7 +839,7 @@ void function Payload_WaitForNukeTitanDeath( entity titan )
 	
 	if( file.militiaHarvester.harvester.GetHealth() > 1 )
 	{
-		SetSuddenDeathBased( true )
+		Riff_ForceSetEliminationMode( eEliminationMode.Pilots )
 		SetServerVar( "gameEndTime", Time() )
 		SetServerVar( "roundEndTime", Time() )
 	}
@@ -845,6 +957,7 @@ void function PayloadNukeTitanProximityChecker( entity titan )
 		}
 		
 		TrackCheckpointProgress( file.capturedCheckpoints )
+		
 		wait 0.5
 	}
 }
@@ -972,7 +1085,6 @@ void function GameModeRulesEarnMeterOnDamage_PLD( entity attacker, entity victim
 {
 }
 
-
 void function OnHarvesterDamaged( entity harvester, var damageInfo )
 {
 	entity attacker = DamageInfo_GetAttacker( damageInfo )
@@ -1091,6 +1203,42 @@ void function OnNukeTitanPostDamaged( entity npc, var damageInfo )
 	}
 }
 
+void function PLD_DamagePlayerScale( entity ent, var damageInfo )
+{
+	entity attacker = DamageInfo_GetAttacker( damageInfo )
+	if ( IsValidPlayer( attacker ) && GetCurrentPlaylistVarInt( "pld_gruntplayers", 0 ) == 1 )
+		DamageInfo_ScaleDamage( damageInfo, 0.2 )
+	else if( IsAlive( file.theNukeTitan ) )
+	{
+		if ( Distance( ent.GetOrigin(), file.theNukeTitan.GetOrigin() ) < PLD_PUSH_DIST )
+		{
+			switch ( DamageInfo_GetDamageSourceIdentifier( damageInfo ) )
+			{
+				case eDamageSourceId.mp_weapon_sniper:
+				case eDamageSourceId.mp_weapon_mastiff:
+				case eDamageSourceId.mp_weapon_shotgun:
+				case eDamageSourceId.mp_weapon_defender:
+				case eDamageSourceId.mp_weapon_epg:
+				case eDamageSourceId.mp_weapon_softball:
+				case eDamageSourceId.mp_weapon_satchel:
+				case eDamageSourceId.mp_weapon_frag_grenade:
+				case eDamageSourceId.mp_weapon_thermite_grenade:
+				case eDamageSourceId.mp_weapon_pulse_lmg:
+				DamageInfo_ScaleDamage( damageInfo, 0.1 )
+				break
+				
+				case eDamageSourceId.mp_weapon_lstar:
+				case eDamageSourceId.mp_weapon_smr:
+				DamageInfo_ScaleDamage( damageInfo, 0.2 )
+				break
+				
+				default:
+				DamageInfo_ScaleDamage( damageInfo, 0.4 )
+			}
+		}
+	}
+}
+
 
 
 
@@ -1110,6 +1258,170 @@ void function OnNukeTitanPostDamaged( entity npc, var damageInfo )
 ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝
 
 */
+
+void function Spawner_Threaded( int team )
+{
+	svGlobal.levelEnt.EndSignal( "GameStateChanged" )
+
+	wait 5.0
+	while( true )
+	{
+		array<entity> npcs = GetNPCArrayOfTeam( team )
+		
+		ArrayRemoveDead( npcs )
+		foreach ( entity npc in npcs )
+		{
+			if( IsMinion( npc ) || IsStalker( npc ) )
+				continue
+			
+			npcs.removebyvalue( npc )
+		}
+		
+		int count = npcs.len()
+		if ( count <= PAYLOAD_GRUNTS_PER_TEAM )
+		{
+			entity node = GetBestNodeForGruntPod( team )
+			thread PLD_SpawnDroppodGrunts( node, team )
+		}
+		
+		wait 1.0
+	}
+}
+
+entity function GetBestNodeForGruntPod( int team )
+{
+	SpawnPoints_InitRatings( null, team )
+	float distance = Distance2D( file.harvesterSpawnSpot, file.nukeTitanSpawnSpot )
+	foreach ( entity spawnpoint in SpawnPoints_GetDropPod() )
+	{
+		float currentRating = 1.0 * ( 1 - ( distance / 4000.0 ) )
+		float friendliesScore = spawn.NearbyAllyScore( team, "ai" ) + spawn.NearbyAllyScore( team, "titan" ) + spawn.NearbyAllyScore( team, "pilot" )
+		float enemiesRating = spawn.NearbyEnemyScore( team, "ai" ) + spawn.NearbyEnemyScore( team, "titan" ) + spawn.NearbyEnemyScore( team, "pilot" )
+		currentRating += friendliesScore + enemiesRating
+		spawnpoint.CalculateRating( TD_AI, team, currentRating, currentRating * 0.25 )
+	}
+	
+	SpawnPoints_SortDropPod()
+	
+	array< entity > spawnpoints = SpawnPoints_GetDropPod()
+	
+	return spawnpoints[0]
+}
+
+void function GruntPathsToObjectives( entity npc )
+{
+	npc.EndSignal( "OnDestroy" )
+	npc.EndSignal( "OnDeath" )
+
+	if( !GamePlaying() )
+		return
+	
+	int team = npc.GetTeam()
+	
+	while ( IsAlive( npc ) )
+	{
+		vector assaultPoint
+		if( team == TEAM_IMC )
+		{
+			if( IsAlive( file.theNukeTitan ) )
+				assaultPoint = file.theNukeTitan.GetOrigin()
+			else
+				assaultPoint = file.nukeTitanSpawnSpot
+		}
+		else if( team == TEAM_MILITIA )
+		{
+			assaultPoint = file.harvesterSpawnSpot
+			foreach( entity point in file.checkpointEnts )
+			{
+				if( point.GetTeam() == TEAM_MILITIA )
+				{
+					assaultPoint = point.GetOrigin()
+					break
+				}
+			}
+		}
+
+		npc.AssaultPoint( assaultPoint )
+		wait 5
+	}
+}
+
+void function PLD_OnPlayerGetsNewPilotLoadout( entity player, PilotLoadoutDef loadout )
+{
+	loadout.setFileMods.append( "disable_wallrun" )
+	loadout.setFileMods.append( "disable_doublejump" )
+	loadout.race = "race_human_male"
+	loadout.setFile = GetSuitAndGenderBasedSetFile( loadout.suit, loadout.race )
+	player.SetPlayerSettingsWithMods( loadout.setFile, loadout.setFileMods )
+	
+	player.TakeOffhandWeapon( OFFHAND_SPECIAL )
+	SyncedMelee_Disable( player )
+	
+	entity weapon = player.GetActiveWeapon()
+	string weaponSubClass
+	if ( IsValid( weapon ) )
+		weaponSubClass = string( weapon.GetWeaponInfoFileKeyField( "weaponSubClass" ) )
+	
+	asset model
+	switch ( player.GetTeam() )
+	{
+		case TEAM_MILITIA:
+			switch ( weaponSubClass )
+			{
+				case "lmg":
+				case "sniper":
+					model = TEAM_MIL_GRUNT_MODEL_LMG
+					break
+
+				case "rocket":
+				case "shotgun":
+				case "projectile_shotgun":
+					model = TEAM_MIL_GRUNT_MODEL_SHOTGUN
+					break
+
+				case "handgun":
+				case "smg":
+				case "sidearm":
+					model = TEAM_MIL_GRUNT_MODEL_SMG
+					break
+
+				case "rifle":
+				default:
+					model = TEAM_MIL_GRUNT_MODEL_RIFLE
+					break
+			}
+			break
+
+		case TEAM_IMC:
+		default:
+			switch ( weaponSubClass )
+			{
+				case "lmg":
+				case "sniper":
+					model = TEAM_IMC_GRUNT_MODEL_LMG
+					break
+
+				case "rocket":
+				case "shotgun":
+				case "projectile_shotgun":
+					model = TEAM_IMC_GRUNT_MODEL_SHOTGUN
+					break
+
+				case "handgun":
+				case "smg":
+				case "sidearm":
+					model = TEAM_IMC_GRUNT_MODEL_SMG
+					break
+
+				case "rifle":
+				default:
+					model = TEAM_IMC_GRUNT_MODEL
+					break
+			}
+			break
+	}
+	player.SetModel( model )
+}
 
 int function PLD_TimeoutWinner()
 {
@@ -1180,7 +1492,7 @@ function PayloadUseBatteryFunc( batteryPortvar, playervar )
 	if ( !IsValid( player ) || harvester.GetShieldHealth() == harvester.GetShieldHealthMax() )
 		return
 	
-	AddPlayerScore( player, "FDShieldHarvester" )
+	AddPlayerScore( player, "FDShieldHarvester", player )
 	player.AddToPlayerGameStat( PGS_ASSAULT_SCORE, PAYLOAD_SCORE_OBJECTIVE_SHIELD_HARVESTER )
 	
 	int shieldToBoost = harvester.GetShieldHealth()
@@ -1262,6 +1574,7 @@ void function PLD_PilotStartRodeo( entity pilot, entity titan )
 
 void function PLD_PilotEndRodeo( entity pilot, entity titan )
 {
+	HideName( pilot )
 	Highlight_ClearEnemyHighlight( pilot )
 	Highlight_ClearFriendlyHighlight( pilot )
 	

@@ -25,10 +25,7 @@
 		},
 		{
 			"Path": "mp/levels/payload_maps.nut",
-			"RunOn": "SERVER && MP",
-			"ServerCallback": {
-				"Before": "PayloadCallback_MapInit"
-			}
+			"RunOn": "SERVER && MP"
 		}
 	],
 	"Localisation": [

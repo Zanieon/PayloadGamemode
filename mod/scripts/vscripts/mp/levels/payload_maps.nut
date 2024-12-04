@@ -1,11 +1,16 @@
 untyped
 
-global function PayloadCallback_MapInit
+global function Payload_InitMaps
 
-void function PayloadCallback_MapInit()
+void function Payload_InitMaps()
 {
 	if( IsLobby() || GameRules_GetGameMode() != GAMEMODE_PLD ) // Don't wanna this to trigger on menus nor outside payload mode itself
 		return
+	
+	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
+	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
+	foreach ( entity ent in entitiesToDestroy )
+		ent.Destroy()
 	
 	switch ( GetMapName() )
 	{
@@ -52,11 +57,6 @@ void function PayloadCallback_MapInit()
 
 void function ExecDrydockPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomMapProp( $"models/imc_base/cargo_container_imc_01_white.mdl", < -417, 2237, 232 >, < 0, 0, 0 > )
 	AddPayloadCustomMapProp( $"models/imc_base/cargo_container_imc_01_orange.mdl", < -290, 2237, 232 >, < 0, 0, 0 > )
 	AddPayloadCustomMapProp( $"models/imc_base/cargo_container_imc_01_white.mdl", < -181, 2268, 232 >, < 0, 90, 0 > )
@@ -93,65 +93,26 @@ void function ExecDrydockPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 741, 4620, 201 >, 2000 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < -2271, 3758, 181 >, 2400 )
 	
-	entity spawn
 	array< entity > drydockspawns0
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -926, -2142, 408 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 640.0
-	drydockspawns0.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1155, -1899, 240 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 800.0
-	drydockspawns0.append( spawn )
-	
+	drydockspawns0.append( CreatePayloadSpawnZone( < -926, -2142, 408 >, 640 ) )
+	drydockspawns0.append( CreatePayloadSpawnZone( < 1155, -1899, 240 >, 800 ) )
 	AddPayloadCheckpointWithZones( 0, < -520, -2337, 241 >, drydockspawns0 )
 	
 	array< entity > drydockspawns1
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 975, -336, 416 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 512.0
-	drydockspawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -165, -720, 410 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 400.0
-	drydockspawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -1042, -716, 408 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 400.0
-	drydockspawns1.append( spawn )
-	
+	drydockspawns1.append( CreatePayloadSpawnZone( < 975, -336, 416 >, 512 ) )
+	drydockspawns1.append( CreatePayloadSpawnZone( < -165, -720, 410 >, 400 ) )
+	drydockspawns1.append( CreatePayloadSpawnZone( < -1042, -716, 408 >, 400 ) )
 	AddPayloadCheckpointWithZones( 1, < 348, -302, 255 >, drydockspawns1 )
 	
-	
 	array< entity > drydockspawns2
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -1135, 849, 408 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 400.0
-	drydockspawns2.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 721, 1053, 408 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 400.0
-	drydockspawns2.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1960, 2104, 255 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 640.0
-	drydockspawns2.append( spawn )
-	
+	drydockspawns2.append( CreatePayloadSpawnZone( < -1135, 849, 408 >, 400 ) )
+	drydockspawns2.append( CreatePayloadSpawnZone( < 721, 1053, 408 >, 400 ) )
+	drydockspawns2.append( CreatePayloadSpawnZone( < 1960, 2104, 255 >, 640 ) )
 	AddPayloadCheckpointWithZones( 2, < 813, 1551, 256 >, drydockspawns2 )
 }
 
 void function ExecAngelCityPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomShipStart( < -3440, 3694, 1200 >, < 0, -15, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < -3993, 4948, 1200 >, < 0, 0, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 2676, -2637, 1200 >, < 0, 90, 0 >, TEAM_IMC )
@@ -168,45 +129,22 @@ void function ExecAngelCityPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < -3383, 3683, 136 >, 512 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < -3342, 2555, 128 >, 900 )
 	
-	entity spawn
 	array< entity > angelCityspawns0
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1579, -872, 128 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 625.0
-	angelCityspawns0.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1659, 1044, 258 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 800.0
-	angelCityspawns0.append( spawn )
-	
+	angelCityspawns0.append( CreatePayloadSpawnZone( < 1579, -872, 128 >, 625 ) )
+	angelCityspawns0.append( CreatePayloadSpawnZone( < 1659, 1044, 258 >, 800 ) )
 	AddPayloadCheckpointWithZones( 0, < 2061, -221, 120 >, angelCityspawns0 )
 	
 	array< entity > angelCityspawns1
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -1543, 1072, 148 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 800.0
-	angelCityspawns1.append( spawn )
-	
+	angelCityspawns1.append( CreatePayloadSpawnZone( < -1543, 1072, 148 >, 800 ) )
 	AddPayloadCheckpointWithZones( 1, < -777, 612, 120 >, angelCityspawns1 )
 	
 	array< entity > angelCityspawns2
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -480, 3765, 131 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 900.0
-	angelCityspawns2.append( spawn )
-	
+	angelCityspawns2.append( CreatePayloadSpawnZone( < -480, 3765, 131 >, 900 ) )
 	AddPayloadCheckpointWithZones( 2, < -1659, 2909, 120 >, angelCityspawns2 )
 }
 
 void function ExecBWCPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomShipStart( < -1019, 4145, 800 >, < 0, 180, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 998, 3814, 799 >, < 0, 45, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 3388, -3364, 1100 >, < 0, 0, 0 >, TEAM_IMC )
@@ -227,53 +165,24 @@ void function ExecBWCPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_IMC, < 1321, -2932, 0 >, 1024 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 376, 3643, -257 >, 720 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < -1232, 3344, -252 >, 460 )
-	
-	entity spawn
+
 	array< entity > BWCSpawns0
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1760, -787, -63 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 900.0
-	BWCSpawns0.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -198, -1181, 0 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 680.0
-	BWCSpawns0.append( spawn )
-	
+	BWCSpawns0.append( CreatePayloadSpawnZone( < 1760, -787, -63 >, 900 ) )
+	BWCSpawns0.append( CreatePayloadSpawnZone( < -198, -1181, 0 >, 680 ) )
 	AddPayloadCheckpointWithZones( 0, < 1322, -1585, -45 >, BWCSpawns0 )
 	
 	array< entity > BWCSpawns1
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -418, 427, 128 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 550.0
-	BWCSpawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1449, 698, 64 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 500.0
-	BWCSpawns1.append( spawn )
-	
+	BWCSpawns1.append( CreatePayloadSpawnZone( < -418, 427, 128 >, 550 ) )
+	BWCSpawns1.append( CreatePayloadSpawnZone( < 1449, 698, 64 >, 500 ) )
 	AddPayloadCheckpointWithZones( 1, < 396, 669, -0 >, BWCSpawns1 )
 	
 	array< entity > BWCSpawns2
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 2635, 2056, -30 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 600.0
-	BWCSpawns2.append( spawn )
-	
+	BWCSpawns2.append( CreatePayloadSpawnZone( < 2635, 2056, -30 >, 600 ) )
 	AddPayloadCheckpointWithZones( 2, < 2433, 3156, -223 >, BWCSpawns2 )
 }
 
 void function ExecEdenPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomShipStart( < 3905, 2496, 1100 >, < 0, -135, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 4795, 2267, 1100 >, < 0, -135, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < -1979, 2851, 1100 >, < 0, -90, 0 >, TEAM_IMC )
@@ -291,57 +200,24 @@ void function ExecEdenPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 2595, 3017, 120 >, 800 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 1847, 1476, 207 >, 680 )
 	
-	entity spawn
 	array< entity > EdenSpawns0
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -2135, 780, 54 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 480.0
-	EdenSpawns0.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -2269, -755, 72 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 440.0
-	EdenSpawns0.append( spawn )
-	
+	EdenSpawns0.append( CreatePayloadSpawnZone( < -2135, 780, 54 >, 480 ) )
+	EdenSpawns0.append( CreatePayloadSpawnZone( < -2269, -755, 72 >, 440 ) )
 	AddPayloadCheckpointWithZones( 0, < -2502, 224, 73 >, EdenSpawns0 )
 	
 	array< entity > EdenSpawns1
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1991, -916, 68 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 360.0
-	EdenSpawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1904, -2427, 72 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 720.0
-	EdenSpawns1.append( spawn )
-	
+	EdenSpawns1.append( CreatePayloadSpawnZone( < 1991, -916, 68 >, 360 ) )
+	EdenSpawns1.append( CreatePayloadSpawnZone( < 1904, -2427, 72 >, 720 ) )
 	AddPayloadCheckpointWithZones( 1, < 1579, -1627, 64 >, EdenSpawns1 )
 	
 	array< entity > EdenSpawns2
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 3083, 214, 72 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 500.0
-	EdenSpawns2.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 2090, 342, 71 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 380.0
-	EdenSpawns2.append( spawn )
-	
+	EdenSpawns2.append( CreatePayloadSpawnZone( < 3083, 214, 72 >, 500 ) )
+	EdenSpawns2.append( CreatePayloadSpawnZone( < 2090, 342, 71 >, 380 ) )
 	AddPayloadCheckpointWithZones( 2, < 2480, 837, 56 >, EdenSpawns2 )
 }
 
 void function ExecKodaiPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomShipStart( < 2006, 4478, 1900 >, < 0, 235, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 3014, 4028, 1900 >, < 0, 235, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < -750, -2243, 1900 >, < 0, 90, 0 >, TEAM_IMC )
@@ -358,50 +234,24 @@ void function ExecKodaiPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_IMC, < 737, -1998, 951 >, 640 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 2478, 3433, 992 >, 400 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 1191, 3001, 960 >, 680 )
-	
-	entity spawn
+
 	array< entity > KodaiSpawns0
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -1072, -75, 961 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 800.0
-	KodaiSpawns0.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 964, -285, 960 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 700.0
-	KodaiSpawns0.append( spawn )
-	
+	KodaiSpawns0.append( CreatePayloadSpawnZone( < -1072, -75, 961 >, 800 ) )
+	KodaiSpawns0.append( CreatePayloadSpawnZone( < 964, -285, 960 >, 700 ) )
 	AddPayloadCheckpointWithZones( 0, < 90, -938, 793 >, KodaiSpawns0 )
 	
 	array< entity > KodaiSpawns1
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1004, 1360, 961 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 800.0
-	KodaiSpawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -1181, 1229, 1095 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 460.0
-	KodaiSpawns1.append( spawn )
-	
+	KodaiSpawns1.append( CreatePayloadSpawnZone( < 1004, 1360, 961 >, 800 ) )
+	KodaiSpawns1.append( CreatePayloadSpawnZone( < -1181, 1229, 1095 >, 460 ) )
 	AddPayloadCheckpointWithZones( 1, < 34, 1479, 799 >, KodaiSpawns1 )
 	
 	array< entity > KodaiSpawns2
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -891, 2833, 960 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 1000.0
-	KodaiSpawns2.append( spawn )
-	
+	KodaiSpawns2.append( CreatePayloadSpawnZone( < -891, 2833, 960 >, 1000 ) )
 	AddPayloadCheckpointWithZones( 2, < 433, 3638, 953 >, KodaiSpawns2 )
 }
 
 void function ExecExoplanetPayload()
 {
-	array< entity > entitiesToDestroy = GetEntArrayByClass_Expensive( "info_spawnpoint_dropship_start" )
-	entitiesToDestroy.extend( GetEntArrayByClass_Expensive( "info_hardpoint" ) )
-	foreach ( entity ent in entitiesToDestroy )
-		ent.Destroy()
-	
 	AddPayloadCustomShipStart( < 2924, 1790, 800 >, < 0, -135, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 2062, 2400, 800 >, < 0, -135, 0 >, TEAM_MILITIA )
 	AddPayloadCustomShipStart( < 3141, -3125, 600 >, < 0, 135, 0 >, TEAM_IMC )
@@ -421,33 +271,16 @@ void function ExecExoplanetPayload()
 	AddPayloadFixedSpawnZoneForTeam( TEAM_IMC, < 1281, -4872, -209 >, 810 )
 	AddPayloadFixedSpawnZoneForTeam( TEAM_MILITIA, < 2894, 1697, -64 >, 600 )
 	
-	entity spawn
 	array< entity > ExoplanetSpawns0
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -547, -3146, -107 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 600.0
-	ExoplanetSpawns0.append( spawn )
-	
+	ExoplanetSpawns0.append( CreatePayloadSpawnZone( < -547, -3146, -107 >, 600 ) )
 	AddPayloadCheckpointWithZones( 0, < 120, -3774, -222 >, ExoplanetSpawns0 )
 	
 	array< entity > ExoplanetSpawns1
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -852, -1270, -320 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 900.0
-	ExoplanetSpawns1.append( spawn )
-	
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < 1232, -533, -211 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 900.0
-	ExoplanetSpawns1.append( spawn )
-	
+	ExoplanetSpawns1.append( CreatePayloadSpawnZone( < -852, -1270, -320 >, 900 ) )
+	ExoplanetSpawns1.append( CreatePayloadSpawnZone( < 1232, -533, -211 >, 900 ) )
 	AddPayloadCheckpointWithZones( 1, < 234, -293, -259 >, ExoplanetSpawns1 )
 	
 	array< entity > ExoplanetSpawns2
-	spawn = CreatePropScript( $"models/dev/empty_model.mdl", < -659, 1703, -319 > )
-	spawn.DisableHibernation()
-	spawn.s.zoneRadius <- 830.0
-	ExoplanetSpawns2.append( spawn )
-	
+	ExoplanetSpawns2.append( CreatePayloadSpawnZone( < -659, 1703, -319 >, 830 ) )
 	AddPayloadCheckpointWithZones( 2, < 117, 1355, -324 >, ExoplanetSpawns2 )
 }
